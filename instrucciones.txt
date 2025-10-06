@@ -1,0 +1,76 @@
+requisitos
+
+composer
+mysql
+php 8.3
+ext zip habilitada
+
+
+###COMANDOS COMPOSER/PHP
+//diagnosticar para saber que php esta ejecutando y de donde
+composer diagnose
+
+//cambiar la ruta de php
+setx COMPOSER_PHP "C:\laragon\bin\php\php-8.3.11\php.exe" /M
+
+//saber la arquitectura de php
+php -i
+
+//saber la version de php
+php -v
+
+
+###PROCESO
+crear base de datos collation utf8mb4_unicode_ci
+
+//instalar laravel, filament y livewire
+composer create-project laravel/laravel="^12.0" maquiladora
+composer require filament/filament:"^3.3" -W
+composer require livewire/livewire:^3.6 -W
+
+//conexion de base de datos a mysql
+modificar .env
+tipo de db y conexion
+
+
+
+//creara la migracion de tablas iniciales de laravel
+php artisan migrate
+
+//instalara panel de filament
+php artisan filament:install --panels
+
+//creara un usuario para el sistema
+php artisan make:filament-user
+
+
+///para crear otro panel separado ***opcional
+php artisan make:filament-panel produccion
+
+///para manejo de permisos y roles
+composer require spatie/laravel-permission
+composer require laravel/sanctum
+
+
+
+
+//si vas a generar modelo y migracion
+php artisan make:model Cliente -m
+
+//editar archivo de migracion database/migrations
+y agregar migracion
+
+//para ejecutar migracion
+php artisan migrate
+
+
+//creamos relationship entre los modelos
+
+//creamos los resources
+php artisan make:filament-resource Cliente
+
+
+
+//optimizacion
+php artisan filament:optimize
+php artisan filament:optimize-clear
