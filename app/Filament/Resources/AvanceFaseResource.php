@@ -85,53 +85,97 @@ class AvanceFaseResource extends Resource
                 Tables\Filters\TernaryFilter::make('activo')->label('Activo')->boolean(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('liberar_fase')
-                    ->label('Liberar Siguiente Fase')
-                    ->icon('heroicon-o-arrow-right-circle')
-                    ->color('success')
-                    ->visible(fn (AvanceFase $record) => $record->estado === 'done')
-                    ->action(function (AvanceFase $record) {
-                        $faseActual = $record->fase;
-                        $siguienteFase = $faseActual->siguienteFase();
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('iniciar')
+                        ->label('Iniciar')
+                        ->icon('heroicon-o-play')
+                        ->color('info')
+                        ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
+                        ->action(function (AvanceFase $record) {
+                            $record->update([
+                                'estado' => 'progress',
+                                'fecha_inicio' => now(),
+                            ]);
 
-                        if (!$siguienteFase) {
                             Notification::make()
-                                ->warning()
-                                ->title('No hay siguiente fase')
-                                ->body('Esta es la última fase del proceso.')
+                                ->success()
+                                ->title('Fase iniciada')
+                                ->body('La fase ha sido marcada como "En Progreso"')
                                 ->send();
-                            return;
-                        }
+                        })
+                        ->requiresConfirmation(),
 
-                        // Buscar usuarios que tengan el rol con el mismo nombre que la siguiente fase
-                        $rolNombre = $siguienteFase->nombre;
-                        $usuariosNotificar = User::role($rolNombre)->get();
+                    Tables\Actions\Action::make('finalizar')
+                        ->label('Finalizar')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn (AvanceFase $record) => in_array($record->estado, ['pending', 'progress']))
+                        ->form([
+                            Forms\Components\Textarea::make('notas')
+                                ->label('Notas finales (opcional)')
+                                ->rows(3),
+                        ])
+                        ->action(function (AvanceFase $record, array $data) {
+                            $record->update([
+                                'estado' => 'done',
+                                'fecha_fin' => now(),
+                                'notas' => $data['notas'] ?? $record->notas,
+                            ]);
 
-                        if ($usuariosNotificar->isEmpty()) {
-                            // Si no hay rol con ese nombre, notificar a Administradores
-                            $usuariosNotificar = User::role('Administrador')->get();
-                        }
+                            Notification::make()
+                                ->success()
+                                ->title('¡Fase completada!')
+                                ->body('La fase ha sido finalizada exitosamente.')
+                                ->send();
+                        })
+                        ->requiresConfirmation(),
 
-                        // Enviar notificaciones
-                        foreach ($usuariosNotificar as $usuario) {
-                            $usuario->notify(new FaseLiberada(
-                                $record->programa,
-                                $faseActual,
-                                $siguienteFase
-                            ));
-                        }
+                    Tables\Actions\Action::make('liberar_fase')
+                        ->label('Liberar Siguiente')
+                        ->icon('heroicon-o-arrow-right-circle')
+                        ->color('warning')
+                        ->visible(fn (AvanceFase $record) => $record->estado === 'done')
+                        ->action(function (AvanceFase $record) {
+                            $faseActual = $record->fase;
+                            $siguienteFase = $faseActual->siguienteFase();
 
-                        Notification::make()
-                            ->success()
-                            ->title('Fase liberada exitosamente')
-                            ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}")
-                            ->send();
-                    })
-                    ->requiresConfirmation()
-                    ->modalHeading('Liberar Siguiente Fase')
-                    ->modalDescription('¿Estás seguro de liberar la siguiente fase? Se notificará a los usuarios responsables.')
-                    ->modalSubmitActionLabel('Sí, liberar'),
+                            if (!$siguienteFase) {
+                                Notification::make()
+                                    ->warning()
+                                    ->title('No hay siguiente fase')
+                                    ->body('Esta es la última fase del proceso.')
+                                    ->send();
+                                return;
+                            }
+
+                            $rolNombre = $siguienteFase->nombre;
+                            $usuariosNotificar = User::role($rolNombre)->get();
+
+                            if ($usuariosNotificar->isEmpty()) {
+                                $usuariosNotificar = User::role('Administrador')->get();
+                            }
+
+                            foreach ($usuariosNotificar as $usuario) {
+                                $usuario->notify(new FaseLiberada(
+                                    $record->programa,
+                                    $faseActual,
+                                    $siguienteFase
+                                ));
+                            }
+
+                            Notification::make()
+                                ->success()
+                                ->title('Fase liberada exitosamente')
+                                ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}")
+                                ->send();
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Liberar Siguiente Fase')
+                        ->modalDescription('¿Estás seguro de liberar la siguiente fase? Se notificará a los usuarios responsables.')
+                        ->modalSubmitActionLabel('Sí, liberar'),
+
+                    Tables\Actions\EditAction::make(),
+                ]),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

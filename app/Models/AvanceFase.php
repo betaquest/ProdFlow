@@ -13,7 +13,18 @@ class AvanceFase extends Model
     protected $fillable = [
         'programa_id',
         'fase_id',
+        'responsable_id',
+        'estado',
+        'fecha_inicio',
+        'fecha_fin',
+        'notas',
+        'activo',
+    ];
 
+    protected $casts = [
+        'fecha_inicio' => 'datetime',
+        'fecha_fin' => 'datetime',
+        'activo' => 'boolean',
     ];
 
     public function programa()

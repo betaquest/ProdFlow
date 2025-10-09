@@ -22,6 +22,12 @@ class FaseResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    // Restringir acceso solo a Administradores
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->hasRole('Administrador') ?? false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
