@@ -117,28 +117,28 @@ class MisFases extends Page implements HasTable, HasForms
                     ->icon('heroicon-o-play')
                     ->color('info')
                     ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
+                    ->requiresConfirmation()
+                    ->modalHeading('Iniciar Fase')
+                    ->modalDescription('¿Deseas iniciar esta fase ahora?')
+                    ->modalSubmitActionLabel('Sí, iniciar')
+                    ->successNotificationTitle('Fase iniciada exitosamente')
                     ->action(function (AvanceFase $record) {
                         $record->update([
                             'estado' => 'progress',
                             'fecha_inicio' => now(),
                         ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('Fase iniciada')
-                            ->body('La fase ha sido marcada como "En Progreso"')
-                            ->send();
-                    })
-                    ->requiresConfirmation()
-                    ->modalHeading('Iniciar Fase')
-                    ->modalDescription('¿Deseas iniciar esta fase ahora?')
-                    ->modalSubmitActionLabel('Sí, iniciar'),
+                    }),
 
                 Tables\Actions\Action::make('finalizar')
                     ->label('Finalizar')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn (AvanceFase $record) => $record->estado === 'progress')
+                    ->requiresConfirmation()
+                    ->modalHeading('Finalizar Fase')
+                    ->modalDescription('¿Estás seguro de marcar esta fase como finalizada?')
+                    ->modalSubmitActionLabel('Sí, finalizar')
+                    ->successNotificationTitle('Fase completada exitosamente')
                     ->form([
                         Forms\Components\Textarea::make('notas')
                             ->label('Notas finales (opcional)')
@@ -151,23 +151,17 @@ class MisFases extends Page implements HasTable, HasForms
                             'fecha_fin' => now(),
                             'notas' => $data['notas'] ?? $record->notas,
                         ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('¡Fase completada!')
-                            ->body('La fase ha sido finalizada exitosamente. Ahora puedes liberar la siguiente fase.')
-                            ->send();
-                    })
-                    ->requiresConfirmation()
-                    ->modalHeading('Finalizar Fase')
-                    ->modalDescription('¿Estás seguro de marcar esta fase como finalizada?')
-                    ->modalSubmitActionLabel('Sí, finalizar'),
+                    }),
 
                 Tables\Actions\Action::make('liberar_siguiente')
                     ->label('Liberar Siguiente')
                     ->icon('heroicon-o-arrow-right-circle')
                     ->color('warning')
                     ->visible(fn (AvanceFase $record) => $record->estado === 'done')
+                    ->requiresConfirmation()
+                    ->modalHeading('Liberar Siguiente Fase')
+                    ->modalDescription('¿Deseas liberar la siguiente fase del proceso? Los usuarios responsables serán notificados.')
+                    ->modalSubmitActionLabel('Sí, liberar fase')
                     ->action(function (AvanceFase $record) {
                         $faseActual = $record->fase;
                         $siguienteFase = $faseActual->siguienteFase();
@@ -181,9 +175,29 @@ class MisFases extends Page implements HasTable, HasForms
                             return;
                         }
 
-                        // Buscar usuarios con el rol de la siguiente fase
-                        $rolNombre = $siguienteFase->nombre;
-                        $usuariosNotificar = User::role($rolNombre)->get();
+                        // 🔹 AUTO-CREAR siguiente avance de fase
+                        // Verificar si ya existe un avance para esta fase del programa
+                        $avanceExistente = AvanceFase::where('programa_id', $record->programa_id)
+                            ->where('fase_id', $siguienteFase->id)
+                            ->first();
+
+                        if (!$avanceExistente) {
+                            // Buscar primer usuario con el rol de la siguiente fase
+                            $rolNombre = $siguienteFase->nombre;
+                            $primerUsuarioRol = User::role($rolNombre)->first();
+
+                            // Crear el siguiente avance automáticamente
+                            $nuevoAvance = AvanceFase::create([
+                                'programa_id' => $record->programa_id,
+                                'fase_id' => $siguienteFase->id,
+                                'responsable_id' => $primerUsuarioRol?->id, // Asigna primer usuario del rol o null
+                                'estado' => 'pending',
+                                'activo' => true,
+                            ]);
+                        }
+
+                        // Buscar usuarios con el rol de la siguiente fase para notificar
+                        $usuariosNotificar = User::role($siguienteFase->nombre)->get();
 
                         if ($usuariosNotificar->isEmpty()) {
                             $usuariosNotificar = User::role('Administrador')->get();
@@ -201,18 +215,17 @@ class MisFases extends Page implements HasTable, HasForms
                         Notification::make()
                             ->success()
                             ->title('Fase liberada exitosamente')
-                            ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}")
+                            ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}. El avance ha sido creado automáticamente.")
                             ->send();
-                    })
-                    ->requiresConfirmation()
-                    ->modalHeading('Liberar Siguiente Fase')
-                    ->modalDescription('¿Deseas liberar la siguiente fase del proceso? Los usuarios responsables serán notificados.')
-                    ->modalSubmitActionLabel('Sí, liberar fase'),
+                    }),
 
                 Tables\Actions\Action::make('editar_notas')
                     ->label('Editar Notas')
                     ->icon('heroicon-o-pencil-square')
                     ->color('gray')
+                    ->modalHeading('Editar Notas')
+                    ->modalSubmitActionLabel('Guardar')
+                    ->successNotificationTitle('Notas actualizadas exitosamente')
                     ->form([
                         Forms\Components\Textarea::make('notas')
                             ->label('Notas')
@@ -221,14 +234,7 @@ class MisFases extends Page implements HasTable, HasForms
                     ])
                     ->action(function (AvanceFase $record, array $data) {
                         $record->update(['notas' => $data['notas']]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('Notas actualizadas')
-                            ->send();
-                    })
-                    ->modalHeading('Editar Notas')
-                    ->modalSubmitActionLabel('Guardar'),
+                    }),
             ])
             ->bulkActions([])
             ->emptyStateHeading('No tienes fases asignadas')

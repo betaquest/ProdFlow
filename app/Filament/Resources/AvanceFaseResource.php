@@ -148,8 +148,26 @@ class AvanceFaseResource extends Resource
                                 return;
                             }
 
-                            $rolNombre = $siguienteFase->nombre;
-                            $usuariosNotificar = User::role($rolNombre)->get();
+                            // 🔹 AUTO-CREAR siguiente avance de fase
+                            $avanceExistente = AvanceFase::where('programa_id', $record->programa_id)
+                                ->where('fase_id', $siguienteFase->id)
+                                ->first();
+
+                            if (!$avanceExistente) {
+                                $rolNombre = $siguienteFase->nombre;
+                                $primerUsuarioRol = User::role($rolNombre)->first();
+
+                                AvanceFase::create([
+                                    'programa_id' => $record->programa_id,
+                                    'fase_id' => $siguienteFase->id,
+                                    'responsable_id' => $primerUsuarioRol?->id,
+                                    'estado' => 'pending',
+                                    'activo' => true,
+                                ]);
+                            }
+
+                            // Notificar usuarios
+                            $usuariosNotificar = User::role($siguienteFase->nombre)->get();
 
                             if ($usuariosNotificar->isEmpty()) {
                                 $usuariosNotificar = User::role('Administrador')->get();
@@ -166,7 +184,7 @@ class AvanceFaseResource extends Resource
                             Notification::make()
                                 ->success()
                                 ->title('Fase liberada exitosamente')
-                                ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}")
+                                ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}. El avance ha sido creado automáticamente.")
                                 ->send();
                         })
                         ->requiresConfirmation()
