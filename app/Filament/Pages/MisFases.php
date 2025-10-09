@@ -39,8 +39,8 @@ class MisFases extends Page implements HasTable, HasForms
                 AvanceFase::query()
                     ->where('responsable_id', Auth::id())
                     ->with(['programa.proyecto.cliente', 'fase'])
-                    ->orderBy('fecha_inicio', 'desc')
             )
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('programa.proyecto.cliente.nombre')
                     ->label('Cliente')
@@ -109,8 +109,7 @@ class MisFases extends Page implements HasTable, HasForms
                         'pending' => 'Pendiente',
                         'progress' => 'En Progreso',
                         'done' => 'Finalizado',
-                    ])
-                    ->default('progress'),
+                    ]),
             ])
             ->actions([
                 Tables\Actions\Action::make('iniciar')
@@ -139,7 +138,7 @@ class MisFases extends Page implements HasTable, HasForms
                     ->label('Finalizar')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn (AvanceFase $record) => in_array($record->estado, ['pending', 'progress']))
+                    ->visible(fn (AvanceFase $record) => $record->estado === 'progress')
                     ->form([
                         Forms\Components\Textarea::make('notas')
                             ->label('Notas finales (opcional)')

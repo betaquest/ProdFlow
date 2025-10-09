@@ -109,7 +109,7 @@ class AvanceFaseResource extends Resource
                         ->label('Finalizar')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
-                        ->visible(fn (AvanceFase $record) => in_array($record->estado, ['pending', 'progress']))
+                        ->visible(fn (AvanceFase $record) => $record->estado === 'progress')
                         ->form([
                             Forms\Components\Textarea::make('notas')
                                 ->label('Notas finales (opcional)')
