@@ -157,7 +157,26 @@ class MisFases extends Page implements HasTable, HasForms
                     ->label('Liberar Siguiente')
                     ->icon('heroicon-o-arrow-right-circle')
                     ->color('warning')
-                    ->visible(fn (AvanceFase $record) => $record->estado === 'done')
+                    ->visible(function (AvanceFase $record) {
+                        // Solo visible si está finalizado
+                        if ($record->estado !== 'done') {
+                            return false;
+                        }
+
+                        // Verificar si existe siguiente fase
+                        $siguienteFase = $record->fase->siguienteFase();
+                        if (!$siguienteFase) {
+                            return false;
+                        }
+
+                        // Verificar si la siguiente fase ya fue iniciada o finalizada
+                        $avanceSiguiente = AvanceFase::where('programa_id', $record->programa_id)
+                            ->where('fase_id', $siguienteFase->id)
+                            ->first();
+
+                        // Solo mostrar si NO existe o si está en estado 'pending'
+                        return !$avanceSiguiente || $avanceSiguiente->estado === 'pending';
+                    })
                     ->requiresConfirmation()
                     ->modalHeading('Liberar Siguiente Fase')
                     ->modalDescription('¿Deseas liberar la siguiente fase del proceso? Los usuarios responsables serán notificados.')
