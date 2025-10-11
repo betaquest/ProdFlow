@@ -35,11 +35,21 @@ class DashboardView extends Component
     public function loadData()
     {
         $query = Programa::query()->with(['proyecto.cliente', 'avances.fase']);
+
+        // Filtrar por clientes si no se muestran todos
+        if (!$this->dashboard->todos_clientes && $this->dashboard->clientes_ids) {
+            $query->whereHas('proyecto.cliente', function ($q) {
+                $q->whereIn('clientes.id', $this->dashboard->clientes_ids);
+            });
+        }
+
+        // Aplicar criterios adicionales (JSON)
         if ($this->dashboard->criterios) {
             foreach ($this->dashboard->criterios as $campo => $valor) {
                 $query->where($campo, $valor);
             }
         }
+
         $this->programas = $query->get();
 
         // Recalcular estadísticas

@@ -1,10 +1,14 @@
 <div class="h-screen w-screen overflow-hidden flex flex-col text-slate-100">
     {{-- 🧭 ENCABEZADO --}}
     <header class="flex items-center justify-between px-10 py-4 bg-slate-900/90 backdrop-blur-md shadow-lg border-b border-slate-800 relative z-20">
-        {{-- IZQUIERDA: LOGO --}}
-        <div class="flex items-center gap-4 flex-shrink-0">
-            <img src="{{ asset('logo.png') }}" alt="Logo" class="h-16 w-auto drop-shadow-lg">
-        </div>
+        {{-- IZQUIERDA: LOGO (condicional) --}}
+        @if($dashboard->mostrar_logotipo)
+            <div class="flex items-center gap-4 flex-shrink-0">
+                <img src="{{ asset('logo.png') }}" alt="Logo" class="h-16 w-auto drop-shadow-lg">
+            </div>
+        @else
+            <div class="flex-shrink-0 w-16"></div>
+        @endif
 
         {{-- CENTRO: NOMBRE DEL DASHBOARD --}}
         <div class="flex-1 text-center">
@@ -13,11 +17,15 @@
             </h1>
         </div>
 
-        {{-- DERECHA: HORA Y FECHA --}}
-        <div class="text-right flex-shrink-0 leading-tight h-[3rem]" wire:ignore>
-            <h2 id="clock" class="text-4xl font-semibold tabular-nums w-[9ch] text-right"></h2>
-            <p id="date" class="text-base text-slate-400"></p>
-        </div>
+        {{-- DERECHA: HORA Y FECHA (condicional) --}}
+        @if($dashboard->mostrar_reloj)
+            <div class="text-right flex-shrink-0 leading-tight h-[3rem]" wire:ignore>
+                <h2 id="clock" class="text-4xl font-semibold tabular-nums w-[9ch] text-right"></h2>
+                <p id="date" class="text-base text-slate-400"></p>
+            </div>
+        @else
+            <div class="flex-shrink-0 w-16"></div>
+        @endif
 
     </header>
 
@@ -155,9 +163,13 @@
     {{-- 🌈 FONDO ANIMADO --}}
     <style>
         body {
-            background: linear-gradient(270deg, #0f172a, #1e293b, #334155, #0f172a);
-            background-size: 800% 800%;
-            animation: gradientShift 25s ease infinite;
+            @if($dashboard->color_fondo)
+                background-color: {{ $dashboard->color_fondo }};
+            @else
+                background: linear-gradient(270deg, #0f172a, #1e293b, #334155, #0f172a);
+                background-size: 800% 800%;
+                animation: gradientShift 25s ease infinite;
+            @endif
         }
 
         @keyframes gradientShift {
