@@ -18,6 +18,8 @@ class Dashboard extends Model
         'color_fondo',
         'clientes_ids',
         'todos_clientes',
+        'fases_ids',
+        'todas_fases',
     ];
 
     protected $casts = [
@@ -27,6 +29,8 @@ class Dashboard extends Model
         'mostrar_reloj' => 'boolean',
         'clientes_ids' => 'array',
         'todos_clientes' => 'boolean',
+        'fases_ids' => 'array',
+        'todas_fases' => 'boolean',
     ];
 
     public function getRouteKeyName(): string

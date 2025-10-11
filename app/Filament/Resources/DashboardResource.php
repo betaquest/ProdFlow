@@ -77,44 +77,68 @@ class DashboardResource extends Resource
                     ->columns(2)
                     ->collapsible(),
 
-                Forms\Components\Section::make('Filtros por Cliente')
-                    ->description('Selecciona qué clientes se mostrarán en el dashboard')
+                Forms\Components\Section::make('Filtros de Visualización')
+                    ->description('Selecciona qué datos mostrar en el dashboard')
                     ->schema([
-                        Forms\Components\Toggle::make('todos_clientes')
-                            ->label('Mostrar Todos los Clientes')
-                            ->default(true)
-                            ->inline(false)
-                            ->live()
-                            ->helperText('Si está activado, se mostrarán programas de todos los clientes')
+                        // FILTRO DE CLIENTES
+                        Forms\Components\Grid::make(1)
+                            ->schema([
+                                Forms\Components\Toggle::make('todos_clientes')
+                                    ->label('📋 Mostrar Todos los Clientes')
+                                    ->default(true)
+                                    ->inline(false)
+                                    ->live()
+                                    ->helperText('Activado = Todos los clientes | Desactivado = Selecciona específicos'),
+
+                                Forms\Components\CheckboxList::make('clientes_ids')
+                                    ->label('Selecciona Clientes')
+                                    ->options(fn () => \App\Models\Cliente::orderBy('nombre')->pluck('nombre', 'id'))
+                                    ->columns(3)
+                                    ->gridDirection('row')
+                                    ->bulkToggleable()
+                                    ->searchable()
+                                    ->hidden(fn ($get) => $get('todos_clientes'))
+                                    ->helperText('Marca los clientes que quieres incluir'),
+                            ]),
+
+                        Forms\Components\Placeholder::make('divider1')
+                            ->content('───────────────────────────────────────')
                             ->columnSpanFull(),
 
-                        Forms\Components\Select::make('clientes_ids')
-                            ->label('Clientes Específicos')
-                            ->multiple()
-                            ->options(fn () => \App\Models\Cliente::pluck('nombre', 'id'))
-                            ->preload()
-                            ->searchable()
-                            ->hidden(fn ($get) => $get('todos_clientes'))
-                            ->helperText('Selecciona uno o más clientes para filtrar')
-                            ->columnSpanFull(),
+                        // FILTRO DE FASES
+                        Forms\Components\Grid::make(1)
+                            ->schema([
+                                Forms\Components\Toggle::make('todas_fases')
+                                    ->label('📊 Mostrar Todas las Fases')
+                                    ->default(true)
+                                    ->inline(false)
+                                    ->live()
+                                    ->helperText('Activado = Todas las fases | Desactivado = Selecciona específicas'),
+
+                                Forms\Components\CheckboxList::make('fases_ids')
+                                    ->label('Selecciona Fases')
+                                    ->options(fn () => \App\Models\Fase::orderBy('orden')->pluck('nombre', 'id'))
+                                    ->columns(4)
+                                    ->gridDirection('row')
+                                    ->bulkToggleable()
+                                    ->hidden(fn ($get) => $get('todas_fases'))
+                                    ->helperText('Marca las fases que quieres mostrar en el dashboard'),
+                            ]),
                     ])
+                    ->columns(1)
                     ->collapsible(),
 
-                Forms\Components\Section::make('Configuración Avanzada')
+                Forms\Components\Section::make('Configuración Adicional')
                     ->schema([
-                        Forms\Components\Textarea::make('criterios')
-                            ->label('Criterios Adicionales (JSON opcional)')
-                            ->helperText('Filtros adicionales avanzados en formato JSON')
-                            ->rows(3)
-                            ->columnSpanFull(),
                         Forms\Components\TextInput::make('tiempo_actualizacion')
                             ->numeric()
-                            ->label('Tiempo de actualización (segundos)')
+                            ->label('⏱️ Tiempo de actualización (segundos)')
                             ->default(30)
                             ->minValue(5)
-                            ->helperText('Define cada cuántos segundos se actualiza la pantalla automáticamente.'),
+                            ->suffix('seg')
+                            ->helperText('Define cada cuántos segundos se actualiza la pantalla automáticamente'),
                     ])
-                    ->columns(2)
+                    ->columns(1)
                     ->collapsed(),
             ]);
     }

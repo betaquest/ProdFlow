@@ -28,7 +28,18 @@ class DashboardView extends Component
     {
         abort_unless($dashboard->activo, 404);
         $this->dashboard = $dashboard;
-        $this->fases = Fase::orderBy('orden', 'asc')->get();
+
+        // Cargar fases según configuración
+        if (!$this->dashboard->todas_fases && $this->dashboard->fases_ids) {
+            // Solo las fases seleccionadas
+            $this->fases = Fase::whereIn('id', $this->dashboard->fases_ids)
+                ->orderBy('orden', 'asc')
+                ->get();
+        } else {
+            // Todas las fases
+            $this->fases = Fase::orderBy('orden', 'asc')->get();
+        }
+
         $this->loadData();
     }
 
