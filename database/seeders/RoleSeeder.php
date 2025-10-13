@@ -13,6 +13,7 @@ class RoleSeeder extends Seeder
             'Administrador',
             'Ingenieria',
             'Captura',
+            'Abastecimiento',
             'Corte',
             'Ensamblado',
             'Instalacion',

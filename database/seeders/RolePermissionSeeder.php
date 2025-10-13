@@ -36,6 +36,11 @@ class RolePermissionSeeder extends Seeder
 
             // DASHBOARDS
             'dashboards.ver',
+
+            // ABASTECIMIENTO
+            'abastecimiento.ver',
+            'abastecimiento.crear',
+            'abastecimiento.editar',
         ];
 
         // Crear los permisos si no existen
@@ -48,6 +53,7 @@ class RolePermissionSeeder extends Seeder
             'Administrador',
             'Ingenieria',
             'Captura',
+            'Abastecimiento',
             'Corte',
             'Ensamblado',
             'Instalacion',
@@ -81,6 +87,17 @@ class RolePermissionSeeder extends Seeder
             'programas.ver',
             'programas.crear',
             'programas.editar',
+        ]);
+
+        // Rol: Abastecimiento
+        $abastecimiento = Role::where('name', 'Abastecimiento')->first();
+        $abastecimiento->syncPermissions([
+            'programas.ver',
+            'abastecimiento.ver',
+            'abastecimiento.crear',
+            'abastecimiento.editar',
+            'dashboards.ver',
+            'fases.ver',
         ]);
 
         // Roles operativos solo visualizan dashboards o fases
