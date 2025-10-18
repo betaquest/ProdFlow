@@ -41,6 +41,9 @@ class ProgramaResource extends Resource
                 Forms\Components\Select::make('proyecto_id')
                     ->label('Proyecto')
                     ->relationship('proyecto', 'nombre')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->nombre . ' (' . $record->cliente->nombre . ')')
+                    ->searchable()
+                    ->preload()
                     ->required(),
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre del programa')
@@ -64,7 +67,9 @@ class ProgramaResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('proyecto.nombre')
                     ->label('Proyecto')
-                    ->sortable(),
+                    ->formatStateUsing(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\IconColumn::make('activo')->label('Activo')->boolean(),
                 Tables\Columns\TextColumn::make('descripcion')->limit(30),
                 Tables\Columns\TextColumn::make('notas')->limit(30),
@@ -89,6 +94,7 @@ class ProgramaResource extends Resource
             'index' => Pages\ListProgramas::route('/'),
             'create' => Pages\CreatePrograma::route('/create'),
             'edit' => Pages\EditPrograma::route('/{record}/edit'),
+            'reportes' => Pages\ReportesProgramas::route('/reportes'),
         ];
     }
 }

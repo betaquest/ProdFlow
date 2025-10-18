@@ -13,6 +13,11 @@ class ListProgramas extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('reportes')
+                ->label('Ver Reportes')
+                ->icon('heroicon-o-chart-bar')
+                ->url(fn (): string => ProgramaResource::getUrl('reportes'))
+                ->color('info'),
             Actions\CreateAction::make(),
         ];
     }

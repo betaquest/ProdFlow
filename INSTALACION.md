@@ -1,4 +1,4 @@
-# 📦 Guía de Instalación y Despliegue - ProdFlow
+    `   # 📦 Guía de Instalación y Despliegue - ProdFlow
 
 ## 📋 Tabla de Contenidos
 
@@ -17,14 +17,14 @@
 
 ### Requisitos Mínimos
 
-| Componente | Versión Mínima | Versión Recomendada |
-|------------|----------------|---------------------|
-| PHP | 8.2+ | 8.3+ |
-| Composer | 2.5+ | 2.7+ |
-| Node.js | 18.x | 20.x LTS |
-| NPM | 9.x | 10.x |
-| MySQL / MariaDB | 8.0+ / 10.6+ | 8.3+ / 11.0+ |
-| SQL Server (opcional) | 2017+ | 2022+ |
+| Componente            | Versión Mínima | Versión Recomendada |
+| --------------------- | -------------- | ------------------- |
+| PHP                   | 8.2+           | 8.3+                |
+| Composer              | 2.5+           | 2.7+                |
+| Node.js               | 18.x           | 20.x LTS            |
+| NPM                   | 9.x            | 10.x                |
+| MySQL / MariaDB       | 8.0+ / 10.6+   | 8.3+ / 11.0+        |
+| SQL Server (opcional) | 2017+          | 2022+               |
 
 ### Extensiones de PHP Requeridas
 
@@ -519,17 +519,17 @@ MAILGUN_SECRET=tu-api-key
 
 ### Checklist de Producción
 
-- [ ] **APP_ENV=production** en `.env`
-- [ ] **APP_DEBUG=false** en `.env`
-- [ ] Configurar URL correcta en `.env`
-- [ ] Configurar base de datos de producción
-- [ ] Configurar email correctamente
-- [ ] Ejecutar `php artisan optimize`
-- [ ] Configurar caché (Redis recomendado)
-- [ ] Configurar backups automáticos
-- [ ] Configurar SSL/HTTPS
-- [ ] Configurar firewall
-- [ ] Configurar logs rotation
+-   [ ] **APP_ENV=production** en `.env`
+-   [ ] **APP_DEBUG=false** en `.env`
+-   [ ] Configurar URL correcta en `.env`
+-   [ ] Configurar base de datos de producción
+-   [ ] Configurar email correctamente
+-   [ ] Ejecutar `php artisan optimize`
+-   [ ] Configurar caché (Redis recomendado)
+-   [ ] Configurar backups automáticos
+-   [ ] Configurar SSL/HTTPS
+-   [ ] Configurar firewall
+-   [ ] Configurar logs rotation
 
 ### Optimizar para Producción
 
@@ -719,19 +719,20 @@ sudo systemctl start fail2ban
 
 ## 📚 Documentación Adicional
 
-- [README.md](README.md) - Información general del proyecto
-- [FILTROS_DASHBOARD.md](FILTROS_DASHBOARD.md) - Configuración de filtros para dashboards
-- [GUIA_COMPLETA_FLUJO_AUTOMATICO.md](GUIA_COMPLETA_FLUJO_AUTOMATICO.md) - Flujo automático de fases
-- [Laravel Documentation](https://laravel.com/docs)
-- [Filament Documentation](https://filamentphp.com/docs)
+-   [README.md](README.md) - Información general del proyecto
+-   [FILTROS_DASHBOARD.md](FILTROS_DASHBOARD.md) - Configuración de filtros para dashboards
+-   [GUIA_COMPLETA_FLUJO_AUTOMATICO.md](GUIA_COMPLETA_FLUJO_AUTOMATICO.md) - Flujo automático de fases
+-   [Laravel Documentation](https://laravel.com/docs)
+-   [Filament Documentation](https://filamentphp.com/docs)
 
 ---
 
 ## 💬 Soporte
 
 Para soporte técnico o preguntas:
-- Email: soporte@tuempresa.com
-- Issues: [GitHub Issues](https://github.com/tu-usuario/ProdFlow/issues)
+
+-   Email: soporte@tuempresa.com
+-   Issues: [GitHub Issues](https://github.com/tu-usuario/ProdFlow/issues)
 
 ---
 
