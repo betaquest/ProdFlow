@@ -81,6 +81,19 @@ class ProgramaResource extends Resource
             ]);
     }
 
+    public static function canViewReports(): bool
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        $policy = app(\App\Policies\ProgramaPolicy::class);
+
+        return $policy->viewReports($user);
+    }
+
     public static function getRelations(): array
     {
         return [

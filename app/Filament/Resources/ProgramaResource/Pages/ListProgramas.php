@@ -17,7 +17,8 @@ class ListProgramas extends ListRecords
                 ->label('Ver Reportes')
                 ->icon('heroicon-o-chart-bar')
                 ->url(fn (): string => ProgramaResource::getUrl('reportes'))
-                ->color('info'),
+                ->color('info')
+                ->visible(fn (): bool => ProgramaResource::canViewReports()),
             Actions\CreateAction::make(),
         ];
     }

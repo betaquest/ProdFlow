@@ -18,6 +18,14 @@ class ReportesProgramas extends Page
 
     protected static ?string $navigationLabel = 'Reportes';
 
+    /**
+     * Proteger la página con el permiso viewReports
+     */
+    public static function canAccess(array $parameters = []): bool
+    {
+        return static::getResource()::canViewReports();
+    }
+
     public function getViewData(): array
     {
         return [
