@@ -135,11 +135,30 @@ class ReporteGeneral extends Page implements HasForms
         }
 
         $this->resultados = $query->orderBy('fecha_inicio', 'desc')->get()->map(function ($avance) {
-            $diasDuracion = null;
+            $duracion = null;
+            $duracionTexto = 'N/A';
+
             if ($avance->fecha_inicio && $avance->fecha_fin) {
                 $inicio = \Carbon\Carbon::parse($avance->fecha_inicio);
                 $fin = \Carbon\Carbon::parse($avance->fecha_fin);
-                $diasDuracion = $inicio->diffInDays($fin);
+
+                // Calcular la diferencia en horas y minutos
+                $totalMinutos = $inicio->diffInMinutes($fin);
+                $horas = floor($totalMinutos / 60);
+                $minutos = $totalMinutos % 60;
+
+                // Formatear el texto
+                if ($horas > 0 && $minutos > 0) {
+                    $duracionTexto = "{$horas}h {$minutos}m";
+                } elseif ($horas > 0) {
+                    $duracionTexto = "{$horas}h";
+                } elseif ($minutos > 0) {
+                    $duracionTexto = "{$minutos}m";
+                } else {
+                    $duracionTexto = "0m";
+                }
+
+                $duracion = $totalMinutos;
             }
 
             // Convertir estado a porcentaje
@@ -163,9 +182,10 @@ class ReporteGeneral extends Page implements HasForms
                 'proyecto' => $avance->programa->proyecto->nombre ?? 'N/A',
                 'programa' => $avance->programa->nombre ?? 'N/A',
                 'fase' => $avance->fase->nombre ?? 'N/A',
-                'fecha_inicio' => $avance->fecha_inicio ? \Carbon\Carbon::parse($avance->fecha_inicio)->format('d/m/Y') : 'N/A',
-                'fecha_fin' => $avance->fecha_fin ? \Carbon\Carbon::parse($avance->fecha_fin)->format('d/m/Y') : 'N/A',
-                'dias_duracion' => $diasDuracion ?? 'N/A',
+                'fecha_inicio' => $avance->fecha_inicio ? \Carbon\Carbon::parse($avance->fecha_inicio)->format('d/m/Y H:i') : 'N/A',
+                'fecha_fin' => $avance->fecha_fin ? \Carbon\Carbon::parse($avance->fecha_fin)->format('d/m/Y H:i') : 'N/A',
+                'duracion' => $duracion,
+                'duracion_texto' => $duracionTexto,
                 'estado' => $estadoLabel,
                 'porcentaje' => $porcentaje,
                 'observaciones' => $avance->notas ?? '-',

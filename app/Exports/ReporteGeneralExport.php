@@ -28,7 +28,7 @@ class ReporteGeneralExport implements FromArray, WithHeadings, WithStyles, WithC
                 $item['fase'],
                 $item['fecha_inicio'],
                 $item['fecha_fin'],
-                $item['dias_duracion'],
+                $item['duracion_texto'],
                 $item['estado'],
                 $item['porcentaje'] . '%',
                 $item['observaciones'],
@@ -45,7 +45,7 @@ class ReporteGeneralExport implements FromArray, WithHeadings, WithStyles, WithC
             'Fase',
             'Fecha Inicio',
             'Fecha Fin',
-            'Días Duración',
+            'Duración (h/m)',
             'Estado',
             'Avance %',
             'Observaciones',
@@ -75,9 +75,9 @@ class ReporteGeneralExport implements FromArray, WithHeadings, WithStyles, WithC
             'B' => 25, // Proyecto
             'C' => 25, // Programa
             'D' => 25, // Fase
-            'E' => 15, // Fecha Inicio
-            'F' => 15, // Fecha Fin
-            'G' => 15, // Días Duración
+            'E' => 18, // Fecha Inicio (con hora)
+            'F' => 18, // Fecha Fin (con hora)
+            'G' => 15, // Duración (h/m)
             'H' => 18, // Estado
             'I' => 12, // Avance %
             'J' => 40, // Observaciones

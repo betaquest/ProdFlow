@@ -42,7 +42,7 @@
                                         Fecha Fin
                                     </th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Días
+                                        Duración
                                     </th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         Estado
@@ -78,7 +78,7 @@
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                                {{ $resultado['dias_duracion'] }} días
+                                                {{ $resultado['duracion_texto'] }}
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
