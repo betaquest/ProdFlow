@@ -22,6 +22,19 @@ class AvanceFaseResource extends Resource
 
     protected static ?string $navigationLabel = 'Avances de Fase';
 
+    /**
+     * Restringir acceso solo a Administradores
+     */
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        return $user->hasRole('Administrador');
+    }
+
     public static function form(Form $form): Form
     {
         return $form

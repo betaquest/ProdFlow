@@ -34,43 +34,59 @@ class MisFases extends Page implements HasTable, HasForms
 
     public static function getNavigationBadge(): ?string
     {
-        $userId = Auth::id();
+        $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
 
-        $count = AvanceFase::where('responsable_id', $userId)
-            ->whereIn('estado', ['pending', 'progress'])
-            ->count();
+        // Solo el Administrador ve el total de todas las tareas
+        // Los demás usuarios solo ven las suyas
+        if (!Auth::user()->hasRole('Administrador')) {
+            $query->where('responsable_id', Auth::id());
+        }
+
+        $count = $query->count();
 
         return $count > 0 ? (string) $count : null;
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
-        $userId = Auth::id();
+        $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
 
-        $count = AvanceFase::where('responsable_id', $userId)
-            ->whereIn('estado', ['pending', 'progress'])
-            ->count();
+        // Solo el Administrador ve el total de todas las tareas
+        // Los demás usuarios solo ven las suyas
+        if (!Auth::user()->hasRole('Administrador')) {
+            $query->where('responsable_id', Auth::id());
+        }
+
+        $count = $query->count();
 
         if ($count === 0) {
             return null;
         }
 
         // Si hay tareas en progreso, mostrar en warning (amarillo)
-        $inProgress = AvanceFase::where('responsable_id', $userId)
-            ->where('estado', 'progress')
-            ->exists();
+        $queryInProgress = AvanceFase::where('estado', 'progress');
+
+        if (!Auth::user()->hasRole('Administrador')) {
+            $queryInProgress->where('responsable_id', Auth::id());
+        }
+
+        $inProgress = $queryInProgress->exists();
 
         return $inProgress ? 'warning' : 'danger';
     }
 
     public function table(Table $table): Table
     {
+        $query = AvanceFase::query()->with(['programa.proyecto.cliente', 'fase']);
+
+        // Solo el Administrador puede ver todos los procesos
+        // Los demás usuarios solo ven sus propias tareas
+        if (!Auth::user()->hasRole('Administrador')) {
+            $query->where('responsable_id', Auth::id());
+        }
+
         return $table
-            ->query(
-                AvanceFase::query()
-                    ->where('responsable_id', Auth::id())
-                    ->with(['programa.proyecto.cliente', 'fase'])
-            )
+            ->query($query)
             ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('programa.proyecto.cliente.nombre')
@@ -95,6 +111,14 @@ class MisFases extends Page implements HasTable, HasForms
                     ->badge()
                     ->color('info')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('responsable.name')
+                    ->label('Responsable')
+                    ->badge()
+                    ->color('success')
+                    ->searchable()
+                    ->sortable()
+                    ->visible(fn () => Auth::user()->hasRole('Administrador')),
 
                 Tables\Columns\BadgeColumn::make('estado')
                     ->label('Estado')
