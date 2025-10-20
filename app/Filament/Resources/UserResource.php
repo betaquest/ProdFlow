@@ -34,11 +34,20 @@ class UserResource extends Resource
                 Forms\Components\TextInput::make('name')->label('Nombre')
                     ->required()
                     ->maxLength(255),
+
+                Forms\Components\TextInput::make('username')->label('Usuario')
+                    ->required()
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255)
+                    ->alphaDash()
+                    ->helperText('Nombre de usuario único para iniciar sesión'),
+
                 Forms\Components\TextInput::make('email')
+                    ->label('Correo electrónico')
                     ->email()
                     ->required()
-                    ->maxLength(255)
-                    ->disabled(fn ($context) => $context === 'edit'),
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255),
 
                 Forms\Components\TextInput::make('password')
                     ->password()
@@ -71,7 +80,15 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('name')->label('Nombre')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('username')->label('Usuario')
+                    ->searchable()
+                    ->sortable()
+                    ->copyable()
+                    ->copyMessage('Usuario copiado')
+                    ->badge()
+                    ->color('success'),
                 Tables\Columns\TextColumn::make('email')
+                    ->label('Correo')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('roles.name')
                     ->label('Rol')
