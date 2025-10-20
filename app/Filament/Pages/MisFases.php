@@ -32,6 +32,37 @@ class MisFases extends Page implements HasTable, HasForms
 
     protected static ?int $navigationSort = 1;
 
+    public static function getNavigationBadge(): ?string
+    {
+        $userId = Auth::id();
+
+        $count = AvanceFase::where('responsable_id', $userId)
+            ->whereIn('estado', ['pending', 'progress'])
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $userId = Auth::id();
+
+        $count = AvanceFase::where('responsable_id', $userId)
+            ->whereIn('estado', ['pending', 'progress'])
+            ->count();
+
+        if ($count === 0) {
+            return null;
+        }
+
+        // Si hay tareas en progreso, mostrar en warning (amarillo)
+        $inProgress = AvanceFase::where('responsable_id', $userId)
+            ->where('estado', 'progress')
+            ->exists();
+
+        return $inProgress ? 'warning' : 'danger';
+    }
+
     public function table(Table $table): Table
     {
         return $table
