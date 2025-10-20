@@ -55,17 +55,33 @@ class Login extends BaseLogin
 
         $credentials = $this->getCredentialsFromFormData($data);
 
+        \Illuminate\Support\Facades\Log::info('Login attempt', [
+            'credentials' => array_keys($credentials),
+            'login_value' => $credentials[array_key_first($credentials)]
+        ]);
+
         // Verificar que el usuario esté activo
         $loginField = array_key_first($credentials);
         $user = \App\Models\User::where($loginField, $credentials[$loginField])->first();
 
-        if ($user && !$user->active) {
+        if (!$user) {
+            \Illuminate\Support\Facades\Log::warning('User not found', ['field' => $loginField, 'value' => $credentials[$loginField]]);
+            $this->throwFailureValidationException();
+        }
+
+        \Illuminate\Support\Facades\Log::info('User found', ['user' => $user->username, 'active' => $user->active]);
+
+        if (!$user->active) {
+            \Illuminate\Support\Facades\Log::warning('User not active');
             $this->throwFailureValidationException();
         }
 
         if (! \Illuminate\Support\Facades\Auth::attempt($credentials, $data['remember'] ?? false)) {
+            \Illuminate\Support\Facades\Log::error('Auth attempt failed', ['credentials' => array_keys($credentials)]);
             $this->throwFailureValidationException();
         }
+
+        \Illuminate\Support\Facades\Log::info('Login successful');
 
         session()->regenerate();
 

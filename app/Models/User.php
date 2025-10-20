@@ -28,22 +28,6 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the column name for the "username" (login) field.
-     */
-    public function username(): string
-    {
-        return 'username';
-    }
-
-    /**
-     * Get the name of the unique identifier for the user.
-     */
-    public function getAuthIdentifierName(): string
-    {
-        return 'username';
-    }
-
-    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
