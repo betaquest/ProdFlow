@@ -176,14 +176,71 @@ class ReporteGeneral extends Page implements HasForms
                 default => 'Pendiente',
             };
 
+            // ⏱️ CALCULAR TIEMPOS ENTRE FASES
+            // 1. Tiempo de Espera: desde que terminó fase anterior hasta que se liberó esta fase
+            $tiempoEspera = null;
+            $tiempoEsperaTexto = '-';
+
+            // Buscar la fase anterior del mismo programa que esté finalizada
+            $faseAnterior = \App\Models\AvanceFase::where('programa_id', $avance->programa_id)
+                ->where('fase_id', '<', $avance->fase_id)
+                ->where('estado', 'done')
+                ->orderBy('fase_id', 'desc')
+                ->first();
+
+            if ($faseAnterior && $faseAnterior->fecha_fin && $avance->fecha_liberacion) {
+                $tiempoEspera = \Carbon\Carbon::parse($faseAnterior->fecha_fin)
+                    ->diffInMinutes(\Carbon\Carbon::parse($avance->fecha_liberacion));
+
+                $horas = floor($tiempoEspera / 60);
+                $minutos = $tiempoEspera % 60;
+
+                if ($horas > 0 && $minutos > 0) {
+                    $tiempoEsperaTexto = "{$horas}h {$minutos}m";
+                } elseif ($horas > 0) {
+                    $tiempoEsperaTexto = "{$horas}h";
+                } elseif ($minutos > 0) {
+                    $tiempoEsperaTexto = "{$minutos}m";
+                } else {
+                    $tiempoEsperaTexto = "0m";
+                }
+            }
+
+            // 2. Tiempo de Reacción: desde que se liberó hasta que se inició
+            $tiempoReaccion = null;
+            $tiempoReaccionTexto = '-';
+
+            if ($avance->fecha_liberacion && $avance->fecha_inicio) {
+                $tiempoReaccion = \Carbon\Carbon::parse($avance->fecha_liberacion)
+                    ->diffInMinutes(\Carbon\Carbon::parse($avance->fecha_inicio));
+
+                $horas = floor($tiempoReaccion / 60);
+                $minutos = $tiempoReaccion % 60;
+
+                if ($horas > 0 && $minutos > 0) {
+                    $tiempoReaccionTexto = "{$horas}h {$minutos}m";
+                } elseif ($horas > 0) {
+                    $tiempoReaccionTexto = "{$horas}h";
+                } elseif ($minutos > 0) {
+                    $tiempoReaccionTexto = "{$minutos}m";
+                } else {
+                    $tiempoReaccionTexto = "0m";
+                }
+            }
+
             return [
                 'id' => $avance->id,
                 'cliente' => $avance->programa->proyecto->cliente->nombre ?? 'N/A',
                 'proyecto' => $avance->programa->proyecto->nombre ?? 'N/A',
                 'programa' => $avance->programa->nombre ?? 'N/A',
                 'fase' => $avance->fase->nombre ?? 'N/A',
+                'fecha_liberacion' => $avance->fecha_liberacion ? \Carbon\Carbon::parse($avance->fecha_liberacion)->format('d/m/Y H:i') : '-',
                 'fecha_inicio' => $avance->fecha_inicio ? \Carbon\Carbon::parse($avance->fecha_inicio)->format('d/m/Y H:i') : 'N/A',
                 'fecha_fin' => $avance->fecha_fin ? \Carbon\Carbon::parse($avance->fecha_fin)->format('d/m/Y H:i') : 'N/A',
+                'tiempo_espera' => $tiempoEspera,
+                'tiempo_espera_texto' => $tiempoEsperaTexto,
+                'tiempo_reaccion' => $tiempoReaccion,
+                'tiempo_reaccion_texto' => $tiempoReaccionTexto,
                 'duracion' => $duracion,
                 'duracion_texto' => $duracionTexto,
                 'estado' => $estadoLabel,

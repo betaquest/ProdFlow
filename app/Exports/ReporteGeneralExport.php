@@ -26,8 +26,11 @@ class ReporteGeneralExport implements FromArray, WithHeadings, WithStyles, WithC
                 $item['proyecto'],
                 $item['programa'],
                 $item['fase'],
+                $item['fecha_liberacion'],
                 $item['fecha_inicio'],
                 $item['fecha_fin'],
+                $item['tiempo_espera_texto'],
+                $item['tiempo_reaccion_texto'],
                 $item['duracion_texto'],
                 $item['estado'],
                 $item['porcentaje'] . '%',
@@ -43,9 +46,12 @@ class ReporteGeneralExport implements FromArray, WithHeadings, WithStyles, WithC
             'Proyecto',
             'Programa',
             'Fase',
+            'Fecha Liberación',
             'Fecha Inicio',
             'Fecha Fin',
-            'Duración (h/m)',
+            'T. Espera (h/m)',
+            'T. Reacción (h/m)',
+            'T. Ejecución (h/m)',
             'Estado',
             'Avance %',
             'Observaciones',
@@ -74,13 +80,16 @@ class ReporteGeneralExport implements FromArray, WithHeadings, WithStyles, WithC
             'A' => 25, // Cliente
             'B' => 25, // Proyecto
             'C' => 25, // Programa
-            'D' => 25, // Fase
-            'E' => 18, // Fecha Inicio (con hora)
-            'F' => 18, // Fecha Fin (con hora)
-            'G' => 15, // Duración (h/m)
-            'H' => 18, // Estado
-            'I' => 12, // Avance %
-            'J' => 40, // Observaciones
+            'D' => 20, // Fase
+            'E' => 18, // Fecha Liberación (con hora)
+            'F' => 18, // Fecha Inicio (con hora)
+            'G' => 18, // Fecha Fin (con hora)
+            'H' => 15, // T. Espera (h/m)
+            'I' => 15, // T. Reacción (h/m)
+            'J' => 15, // T. Ejecución (h/m)
+            'K' => 15, // Estado
+            'L' => 12, // Avance %
+            'M' => 40, // Observaciones
         ];
     }
 

@@ -98,23 +98,29 @@ class MisFases extends Page implements HasTable, HasForms
 
                 Tables\Columns\BadgeColumn::make('estado')
                     ->label('Estado')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pending' => 'Pendiente',
+                    ->formatStateUsing(fn (AvanceFase $record): string => match ($record->estado) {
+                        'pending' => $record->fecha_liberacion ? 'Liberada' : 'Pendiente',
                         'progress' => 'En Progreso',
                         'done' => 'Finalizado',
-                        default => $state,
+                        default => $record->estado,
                     })
                     ->colors([
-                        'secondary' => 'pending',
+                        'secondary' => fn (AvanceFase $record) => $record->estado === 'pending' && !$record->fecha_liberacion,
+                        'info' => fn (AvanceFase $record) => $record->estado === 'pending' && $record->fecha_liberacion,
                         'warning' => 'progress',
                         'success' => 'done',
                     ])
-                    ->icon(fn (string $state): string => match ($state) {
-                        'pending' => 'heroicon-o-clock',
+                    ->icon(fn (AvanceFase $record): string => match ($record->estado) {
+                        'pending' => $record->fecha_liberacion ? 'heroicon-o-bell-alert' : 'heroicon-o-clock',
                         'progress' => 'heroicon-o-arrow-path',
                         'done' => 'heroicon-o-check-circle',
                         default => 'heroicon-o-question-mark-circle',
                     })
+                    ->description(fn (AvanceFase $record): ?string =>
+                        $record->fecha_liberacion && $record->estado === 'pending'
+                            ? 'Notificada: ' . $record->fecha_liberacion->format('d/m/Y H:i')
+                            : null
+                    )
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('fecha_inicio')
@@ -236,14 +242,22 @@ class MisFases extends Page implements HasTable, HasForms
                             $rolNombre = $siguienteFase->nombre;
                             $primerUsuarioRol = User::role($rolNombre)->first();
 
-                            // Crear el siguiente avance automáticamente
+                            // Crear el siguiente avance automáticamente con fecha de liberación
                             $nuevoAvance = AvanceFase::create([
                                 'programa_id' => $record->programa_id,
                                 'fase_id' => $siguienteFase->id,
                                 'responsable_id' => $primerUsuarioRol?->id, // Asigna primer usuario del rol o null
                                 'estado' => 'pending',
+                                'fecha_liberacion' => now(), // ✨ NUEVA: Registrar cuándo se liberó
                                 'activo' => true,
                             ]);
+                        } else {
+                            // Si ya existe pero no tiene fecha de liberación, agregarla
+                            if (!$avanceExistente->fecha_liberacion) {
+                                $avanceExistente->update([
+                                    'fecha_liberacion' => now(),
+                                ]);
+                            }
                         }
 
                         // Buscar usuarios con el rol de la siguiente fase para notificar

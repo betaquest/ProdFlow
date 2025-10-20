@@ -17,6 +17,7 @@ class AvanceFase extends Model
         'estado',
         'fecha_inicio',
         'fecha_fin',
+        'fecha_liberacion',
         'notas',
         'activo',
     ];
@@ -24,6 +25,7 @@ class AvanceFase extends Model
     protected $casts = [
         'fecha_inicio' => 'datetime',
         'fecha_fin' => 'datetime',
+        'fecha_liberacion' => 'datetime',
         'activo' => 'boolean',
     ];
 
