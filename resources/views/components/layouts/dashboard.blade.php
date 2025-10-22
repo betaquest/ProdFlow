@@ -137,5 +137,37 @@
 <body>
     {{ $slot }}
     @livewireScripts
+
+    <script>
+        // Interceptor global para manejar errores 419 (CSRF Token Expired)
+        document.addEventListener('livewire:init', () => {
+            Livewire.hook('request', ({ fail }) => {
+                fail(({ status, preventDefault }) => {
+                    if (status === 419) {
+                        preventDefault();
+                        console.warn('Sesión expirada (419). Recargando página...');
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        // Interceptor para peticiones fetch/axios tradicionales
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            return originalFetch.apply(this, args)
+                .then(response => {
+                    if (response.status === 419) {
+                        console.warn('Sesión expirada (419). Recargando página...');
+                        window.location.reload();
+                    }
+                    return response;
+                })
+                .catch(error => {
+                    // Capturar errores de red o CORS
+                    throw error;
+                });
+        };
+    </script>
 </body>
 </html>

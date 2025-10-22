@@ -42,15 +42,18 @@ class AvanceFaseResource extends Resource
                 Forms\Components\Select::make('programa_id')
                     ->label('Programa')
                     ->relationship('programa', 'nombre')
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
                 Forms\Components\Select::make('fase_id')
                     ->label('Fase')
                     ->relationship('fase', 'nombre')
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
                 Forms\Components\Select::make('responsable_id')
                     ->label('Responsable')
                     ->relationship('responsable', 'name')
-                    ->nullable(),
+                    ->nullable()
+                    ->columnSpanFull(),
                 Forms\Components\Select::make('estado')
                     ->label('Estado')
                     ->options([
@@ -58,11 +61,22 @@ class AvanceFaseResource extends Resource
                         'progress' => 'En proceso',
                         'done' => 'Finalizado',
                     ])
-                    ->required(),
-                Forms\Components\DateTimePicker::make('fecha_inicio')->label('Inicio'),
-                Forms\Components\DateTimePicker::make('fecha_fin')->label('Finalización'),
-                Forms\Components\Textarea::make('notas')->label('Notas')->rows(3),
-                Forms\Components\Toggle::make('activo')->label('Activo')->default(true),
+                    ->required()
+                    ->columnSpanFull(),
+                Forms\Components\DateTimePicker::make('fecha_inicio')
+                    ->label('Inicio')
+                    ->columnSpanFull(),
+                Forms\Components\DateTimePicker::make('fecha_fin')
+                    ->label('Finalización')
+                    ->columnSpanFull(),
+                Forms\Components\Textarea::make('notas')
+                    ->label('Notas')
+                    ->rows(3)
+                    ->columnSpanFull(),
+                Forms\Components\Toggle::make('activo')
+                    ->label('Activo')
+                    ->default(true)
+                    ->columnSpanFull(),
             ]);
     }
 

@@ -32,6 +32,11 @@ class MisFases extends Page implements HasTable, HasForms
 
     protected static ?int $navigationSort = 1;
 
+    public function getMaxContentWidth(): ?string
+    {
+        return 'full';
+    }
+
     public static function getNavigationBadge(): ?string
     {
         $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
@@ -87,6 +92,7 @@ class MisFases extends Page implements HasTable, HasForms
 
         return $table
             ->query($query)
+            ->striped()
             ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('programa.proyecto.cliente.nombre')
@@ -108,6 +114,9 @@ class MisFases extends Page implements HasTable, HasForms
 
                 Tables\Columns\TextColumn::make('fase.nombre')
                     ->label('Fase')
+                    ->formatStateUsing(fn (AvanceFase $record): string =>
+                        $record->fase->alias ?: $record->fase->nombre
+                    )
                     ->badge()
                     ->color('info')
                     ->sortable(),
@@ -147,10 +156,18 @@ class MisFases extends Page implements HasTable, HasForms
                     )
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('fecha_liberacion')
+                    ->label('Liberación')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->placeholder('—')
+                    ->tooltip('Fecha en que la fase fue liberada'),
+
                 Tables\Columns\TextColumn::make('fecha_inicio')
                     ->label('Inicio')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('fecha_fin')
                     ->label('Finalización')
@@ -255,6 +272,11 @@ class MisFases extends Page implements HasTable, HasForms
                             return;
                         }
 
+                        // ✨ Marcar fecha de liberación en la fase ACTUAL
+                        $record->update([
+                            'fecha_liberacion' => now(),
+                        ]);
+
                         // 🔹 AUTO-CREAR siguiente avance de fase
                         // Verificar si ya existe un avance para esta fase del programa
                         $avanceExistente = AvanceFase::where('programa_id', $record->programa_id)
@@ -266,22 +288,14 @@ class MisFases extends Page implements HasTable, HasForms
                             $rolNombre = $siguienteFase->nombre;
                             $primerUsuarioRol = User::role($rolNombre)->first();
 
-                            // Crear el siguiente avance automáticamente con fecha de liberación
+                            // Crear el siguiente avance automáticamente
                             $nuevoAvance = AvanceFase::create([
                                 'programa_id' => $record->programa_id,
                                 'fase_id' => $siguienteFase->id,
-                                'responsable_id' => $primerUsuarioRol?->id, // Asigna primer usuario del rol o null
+                                'responsable_id' => $primerUsuarioRol?->id,
                                 'estado' => 'pending',
-                                'fecha_liberacion' => now(), // ✨ NUEVA: Registrar cuándo se liberó
                                 'activo' => true,
                             ]);
-                        } else {
-                            // Si ya existe pero no tiene fecha de liberación, agregarla
-                            if (!$avanceExistente->fecha_liberacion) {
-                                $avanceExistente->update([
-                                    'fecha_liberacion' => now(),
-                                ]);
-                            }
                         }
 
                         // Buscar usuarios con el rol de la siguiente fase para notificar

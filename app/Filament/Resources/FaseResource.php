@@ -35,7 +35,13 @@ class FaseResource extends Resource
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre de la fase')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->columnSpanFull(),
+                Forms\Components\TextInput::make('alias')
+                    ->label('Alias (nombre corto)')
+                    ->maxLength(50)
+                    ->helperText('Nombre corto para mostrar en el dashboard (opcional)')
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('orden')
                     ->label('Orden')
                     ->required()
@@ -68,6 +74,11 @@ class FaseResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->weight('semibold'),
+                Tables\Columns\TextColumn::make('alias')
+                    ->label('Alias')
+                    ->searchable()
+                    ->placeholder('-')
+                    ->color('gray'),
                 Tables\Columns\IconColumn::make('requiere_aprobacion')
                     ->label('Requiere Aprobación')
                     ->boolean()

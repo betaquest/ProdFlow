@@ -20,6 +20,10 @@ class Dashboard extends Model
         'todos_clientes',
         'fases_ids',
         'todas_fases',
+        'mostrar_solo_en_proceso',
+        'orden_programas',
+        'ocultar_finalizados_antiguos',
+        'usar_alias_fases',
     ];
 
     protected $casts = [
@@ -31,6 +35,9 @@ class Dashboard extends Model
         'todos_clientes' => 'boolean',
         'fases_ids' => 'array',
         'todas_fases' => 'boolean',
+        'mostrar_solo_en_proceso' => 'boolean',
+        'ocultar_finalizados_antiguos' => 'boolean',
+        'usar_alias_fases' => 'boolean',
     ];
 
     public function getRouteKeyName(): string

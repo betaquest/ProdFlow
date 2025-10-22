@@ -61,7 +61,74 @@ class DashboardView extends Component
             }
         }
 
-        $this->programas = $query->get();
+        // Filtrar solo programas en proceso
+        if ($this->dashboard->mostrar_solo_en_proceso) {
+            $query->whereHas('avances', function ($q) {
+                $q->where('estado', 'progress');
+            });
+        }
+
+        // Aplicar ordenamiento
+        $ordenamiento = $this->dashboard->orden_programas ?? 'nombre';
+        switch ($ordenamiento) {
+            case 'cliente':
+                $query->join('proyectos', 'programas.proyecto_id', '=', 'proyectos.id')
+                      ->join('clientes', 'proyectos.cliente_id', '=', 'clientes.id')
+                      ->orderBy('clientes.nombre', 'asc')
+                      ->select('programas.*');
+                break;
+            case 'proyecto':
+                $query->join('proyectos', 'programas.proyecto_id', '=', 'proyectos.id')
+                      ->orderBy('proyectos.nombre', 'asc')
+                      ->select('programas.*');
+                break;
+            case 'nombre':
+            default:
+                $query->orderBy('nombre', 'asc');
+                break;
+        }
+
+        $programas = $query->get();
+
+        // Filtrar programas finalizados antiguos si está habilitado
+        if ($this->dashboard->ocultar_finalizados_antiguos) {
+            $hoy = now()->startOfDay();
+
+            $programas = $programas->filter(function ($programa) use ($hoy) {
+                $todasFasesCompletadas = true;
+                $ultimaFechaFinalizacion = null;
+
+                foreach ($this->fases as $fase) {
+                    $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+
+                    // Si la fase no existe o no está completada, el programa sigue activo
+                    if (!$avance || $avance->estado !== 'done') {
+                        $todasFasesCompletadas = false;
+                        break;
+                    }
+
+                    // Registrar la última fecha de finalización
+                    if ($avance->fecha_fin) {
+                        $ultimaFechaFinalizacion = max($ultimaFechaFinalizacion, $avance->fecha_fin);
+                    }
+                }
+
+                // Si no todas las fases están completadas, siempre mostrarlo
+                if (!$todasFasesCompletadas) {
+                    return true;
+                }
+
+                // Si todas las fases están completadas, solo mostrarlo si la última finalización fue hoy
+                if ($ultimaFechaFinalizacion) {
+                    return $ultimaFechaFinalizacion->isSameDay($hoy);
+                }
+
+                // Si no tiene fecha de finalización pero está completado, mostrarlo
+                return true;
+            });
+        }
+
+        $this->programas = $programas;
 
         // Recalcular estadísticas
         $this->totalDone = 0;

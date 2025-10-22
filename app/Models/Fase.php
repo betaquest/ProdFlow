@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Fase extends Model
 {
     protected $fillable = [
-        'nombre', 'orden', 'requiere_aprobacion', 'estado',
+        'nombre', 'alias', 'orden', 'requiere_aprobacion', 'estado',
     ];
 
     protected $casts = [

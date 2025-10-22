@@ -128,6 +128,41 @@ class DashboardResource extends Resource
                     ->columns(1)
                     ->collapsible(),
 
+                Forms\Components\Section::make('Filtros de Programas')
+                    ->description('Configura qué programas mostrar y cómo ordenarlos')
+                    ->schema([
+                        Forms\Components\Toggle::make('mostrar_solo_en_proceso')
+                            ->label('📌 Mostrar Solo Programas en Proceso')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Activado = Solo programas con al menos una fase en progreso | Desactivado = Todos los programas'),
+
+                        Forms\Components\Toggle::make('ocultar_finalizados_antiguos')
+                            ->label('🗓️ Ocultar Programas Finalizados Antiguos')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Activado = Solo muestra finalizados del día actual | Desactivado = Muestra todos los finalizados'),
+
+                        Forms\Components\Toggle::make('usar_alias_fases')
+                            ->label('📝 Usar Alias de Fases')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Activado = Muestra el alias corto de las fases | Desactivado = Muestra el nombre completo'),
+
+                        Forms\Components\Select::make('orden_programas')
+                            ->label('🔢 Orden de Programas')
+                            ->options([
+                                'nombre' => 'Por Nombre del Programa',
+                                'cliente' => 'Por Cliente',
+                                'proyecto' => 'Por Proyecto',
+                            ])
+                            ->default('nombre')
+                            ->required()
+                            ->helperText('Define el orden en que aparecen los programas en el dashboard'),
+                    ])
+                    ->columns(1)
+                    ->collapsible(),
+
                 Forms\Components\Section::make('Configuración Adicional')
                     ->schema([
                         Forms\Components\TextInput::make('tiempo_actualizacion')
@@ -176,6 +211,17 @@ class DashboardResource extends Resource
                     ->alignCenter()
                     ->color('gray')
                     ->formatStateUsing(fn ($state) => $state.' seg'),
+                Tables\Columns\IconColumn::make('mostrar_solo_en_proceso')
+                    ->boolean()
+                    ->label('Solo En Proceso')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('ocultar_finalizados_antiguos')
+                    ->boolean()
+                    ->label('Ocultar Finalizados')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('orden_programas')
+                    ->label('Orden')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ActionGroup::make([

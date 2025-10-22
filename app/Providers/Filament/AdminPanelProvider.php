@@ -10,12 +10,15 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -55,5 +58,41 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    public function boot(): void
+    {
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::BODY_END,
+            fn (): string => Blade::render(<<<'HTML'
+                <script>
+                    // Interceptor global para manejar errores 419 (CSRF Token Expired)
+                    document.addEventListener('livewire:init', () => {
+                        Livewire.hook('request', ({ fail }) => {
+                            fail(({ status, preventDefault }) => {
+                                if (status === 419) {
+                                    preventDefault();
+                                    console.warn('Sesión expirada (419). Recargando página...');
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    });
+
+                    // Interceptor para peticiones fetch/axios tradicionales
+                    const originalFetch = window.fetch;
+                    window.fetch = function(...args) {
+                        return originalFetch.apply(this, args)
+                            .then(response => {
+                                if (response.status === 419) {
+                                    console.warn('Sesión expirada (419). Recargando página...');
+                                    window.location.reload();
+                                }
+                                return response;
+                            });
+                    };
+                </script>
+            HTML)
+        );
     }
 }

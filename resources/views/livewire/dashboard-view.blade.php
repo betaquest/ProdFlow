@@ -77,7 +77,9 @@
                     <th class="py-3 px-2 text-left">Proyecto</th>
                     <th class="py-3 px-2 text-left">Programa</th>
                     @foreach($fases as $fase)
-                        <th class="py-3 px-2">{{ strtoupper($fase->nombre) }}</th>
+                        <th class="py-3 px-2">
+                            {{ strtoupper($dashboard->usar_alias_fases && $fase->alias ? $fase->alias : $fase->nombre) }}
+                        </th>
                     @endforeach
                 </tr>
             </thead>
@@ -86,25 +88,74 @@
                     <tr class="{{ $loop->even ? 'bg-slate-900/40' : 'bg-slate-900/20' }} hover:bg-slate-800/40 transition-colors">
                         <td class="py-3 px-2 text-left">{{ $programa->proyecto->cliente->nombre }}</td>
                         <td class="py-3 px-2 text-left">{{ $programa->proyecto->nombre }}</td>
-                        <td class="py-3 px-2 text-left font-semibold">{{ $programa->nombre }}</td>
+                        <td class="py-3 px-2 text-left">
+                            <div class="font-semibold">{{ $programa->nombre }}</div>
+                            @if($programa->descripcion)
+                                <div class="text-sm text-slate-400 mt-1">
+                                    {{ \Illuminate\Support\Str::limit($programa->descripcion, 80) }}
+                                </div>
+                            @endif
+                        </td>
 
                         @foreach($fases as $fase)
                             @php
                                 $avance = $programa->avances->firstWhere('fase_id', $fase->id);
                                 $estado = $avance?->estado ?? 'pending';
-                                $color = match($estado) {
-                                    'done' => 'bg-green-500 text-black',
-                                    'progress' => 'bg-yellow-400 text-black animate-pulse',
-                                    default => 'bg-slate-600 text-slate-300',
-                                };
-                                $icon = match($estado) {
-                                    'done' => '✅',
-                                    'progress' => '⏳',
-                                    default => '⬜',
-                                };
+
+                                // Inicializar variables
+                                $mostrarLiberar = false;
+                                $mostrarPendiente = false;
+
+                                // Verificar si existe la siguiente fase en el programa
+                                $siguienteFase = $fases->where('orden', '>', $fase->orden)->first();
+
+                                // Determinar color y estilo basado en estado
+                                if ($estado === 'done') {
+                                    // Si no hay siguiente fase o si ya existe, mostrar como liberada
+                                    if (!$siguienteFase) {
+                                        // Última fase completada - verde brillante
+                                        $color = 'bg-green-500 text-black border-2 border-green-300 shadow-lg shadow-green-500/50';
+                                        $icon = '✅';
+                                    } else {
+                                        // Hay siguiente fase, verificar si ya tiene avance
+                                        $avanceSiguiente = $programa->avances->firstWhere('fase_id', $siguienteFase->id);
+
+                                        if ($avanceSiguiente) {
+                                            // Ya fue liberada (existe siguiente fase)
+                                            $color = 'bg-green-500 text-black border-2 border-green-300 shadow-lg shadow-green-500/50';
+                                            $icon = '✅';
+                                        } else {
+                                            // Completada pero pendiente de liberación
+                                            $color = 'bg-green-700 text-white border-2 border-yellow-400 animate-pulse';
+                                            $icon = '⏸️';
+                                            $mostrarLiberar = true;
+                                        }
+                                    }
+                                } elseif ($estado === 'progress') {
+                                    $color = 'bg-yellow-400 text-black animate-pulse';
+                                    $icon = '⏳';
+                                } else {
+                                    // Estado 'pending' - necesitamos distinguir si fue liberada o no
+                                    if (!$avance) {
+                                        // No existe el avance - fase aún no liberada
+                                        $color = 'bg-slate-600 text-slate-300';
+                                        $icon = '⬜';
+                                    } else {
+                                        // Existe el avance pero está en pending - fase liberada lista para iniciar
+                                        $color = 'bg-blue-500 text-white border-2 border-blue-300 shadow-lg shadow-blue-500/50';
+                                        $icon = '🔔';
+                                        $mostrarPendiente = true;
+                                    }
+                                }
                             @endphp
                             <td class="text-center py-2 px-2 rounded {{ $color }}">
                                 <span class="text-3xl font-bold">{{ $icon }}</span>
+                                @if($mostrarLiberar)
+                                    <div class="text-xs mt-1 font-semibold">LIBERAR</div>
+                                @endif
+                                @if($mostrarPendiente)
+                                    <div class="text-xs mt-1 font-semibold">PENDIENTE</div>
+                                @endif
                             </td>
                         @endforeach
                     </tr>

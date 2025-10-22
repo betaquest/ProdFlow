@@ -11,7 +11,7 @@ class ProgramaObserver
 {
     /**
      * Handle the Programa "created" event.
-     * Crea automáticamente el avance de la primera fase y asigna al creador como responsable
+     * Crea automáticamente el avance de la primera fase y asigna al responsable seleccionado
      */
     public function created(Programa $programa): void
     {
@@ -19,11 +19,20 @@ class ProgramaObserver
         $primeraFase = Fase::orderBy('orden', 'asc')->first();
 
         if ($primeraFase) {
+            // Determinar el responsable: usar el seleccionado o el primer usuario de Ingeniería
+            $responsableId = $programa->responsable_inicial_id;
+
+            if (!$responsableId) {
+                // Si no hay responsable seleccionado, buscar el primer usuario con rol Ingenieria
+                $ingenieriaUser = \App\Models\User::role('Ingenieria')->first();
+                $responsableId = $ingenieriaUser?->id ?? Auth::id();
+            }
+
             // Crear avance de fase automáticamente
             AvanceFase::create([
                 'programa_id' => $programa->id,
                 'fase_id' => $primeraFase->id,
-                'responsable_id' => Auth::id(), // Usuario que creó el programa
+                'responsable_id' => $responsableId,
                 'estado' => 'pending',
                 'activo' => true,
             ]);

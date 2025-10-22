@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProgramaResource\Pages;
 use App\Models\Programa;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -44,13 +45,38 @@ class ProgramaResource extends Resource
                     ->getOptionLabelFromRecordUsing(fn ($record) => $record->nombre . ' (' . $record->cliente->nombre . ')')
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre del programa')
-                    ->required(),
-                Forms\Components\Textarea::make('descripcion')->label('Descripción')->rows(3),
-                Forms\Components\Textarea::make('notas')->label('Notas')->rows(3),
-                Forms\Components\Toggle::make('activo')->label('Activo')->default(true),
+                    ->required()
+                    ->columnSpanFull(),
+                Forms\Components\Select::make('responsable_inicial_id')
+                    ->label('Responsable')
+                    ->options(function () {
+                        return User::all()->pluck('name', 'id');
+                    })
+                    ->default(function () {
+                        // Buscar el primer usuario con rol "Ingenieria"
+                        $ingenieriaUser = User::role('Ingenieria')->first();
+                        return $ingenieriaUser?->id;
+                    })
+                    ->searchable()
+                    ->required()
+                    ->helperText('Por defecto se asigna a Ingeniería')
+                    ->columnSpanFull(),
+                Forms\Components\Textarea::make('descripcion')
+                    ->label('Descripción')
+                    ->rows(3)
+                    ->columnSpanFull(),
+                Forms\Components\Textarea::make('notas')
+                    ->label('Notas')
+                    ->rows(3)
+                    ->columnSpanFull(),
+                Forms\Components\Toggle::make('activo')
+                    ->label('Activo')
+                    ->default(true)
+                    ->columnSpanFull(),
             ]);
     }
 
