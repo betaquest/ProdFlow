@@ -27,6 +27,9 @@ class DashboardView extends Component
     // Programas con alerta de antigüedad
     public array $programasConAlerta = [];
 
+    // Programas completamente finalizados
+    public array $programasFinalizados = [];
+
     public function mount(Dashboard $dashboard)
     {
         abort_unless($dashboard->activo, 404);
@@ -131,26 +134,52 @@ class DashboardView extends Component
             });
         }
 
-        $this->programas = $programas;
+        // Detectar programas completamente finalizados y filtrar si es necesario
+        $this->programasFinalizados = [];
+        $programasFiltrados = collect();
 
-        // Calcular alertas de antigüedad
+        foreach ($programas as $programa) {
+            // Obtener solo las fases configuradas para este programa
+            $fasesPrograma = $programa->getFasesConfiguradasIds();
+            $fasesProgramaObjs = $this->fases->whereIn('id', $fasesPrograma);
+
+            $todasFasesCompletadas = true;
+            foreach ($fasesProgramaObjs as $fase) {
+                $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+                if (!$avance || $avance->estado !== 'done') {
+                    $todasFasesCompletadas = false;
+                    break;
+                }
+            }
+
+            // Marcar programa como finalizado
+            if ($todasFasesCompletadas && $fasesProgramaObjs->isNotEmpty()) {
+                $this->programasFinalizados[] = $programa->id;
+            }
+
+            // Filtrar programas completamente finalizados si está activado
+            if ($this->dashboard->ocultar_completamente_finalizados && $todasFasesCompletadas && $fasesProgramaObjs->isNotEmpty()) {
+                continue; // No agregar este programa
+            }
+
+            $programasFiltrados->push($programa);
+        }
+
+        $this->programas = $programasFiltrados;
+
+        // Calcular alertas de antigüedad (solo para programas NO finalizados)
         $this->programasConAlerta = [];
         if ($this->dashboard->alerta_antiguedad_activa && $this->dashboard->alerta_antiguedad_dias > 0) {
             $fechaLimite = now()->subDays($this->dashboard->alerta_antiguedad_dias);
 
             foreach ($this->programas as $programa) {
-                // Verificar si el programa NO está completamente finalizado
-                $todasFasesCompletadas = true;
-                foreach ($this->fases as $fase) {
-                    $avance = $programa->avances->firstWhere('fase_id', $fase->id);
-                    if (!$avance || $avance->estado !== 'done') {
-                        $todasFasesCompletadas = false;
-                        break;
-                    }
+                // No alertar programas finalizados
+                if (in_array($programa->id, $this->programasFinalizados)) {
+                    continue;
                 }
 
                 // Si no está completado y es más antiguo que el límite, agregar a alertas
-                if (!$todasFasesCompletadas && $programa->created_at < $fechaLimite) {
+                if ($programa->created_at < $fechaLimite) {
                     $this->programasConAlerta[] = $programa->id;
                 }
             }

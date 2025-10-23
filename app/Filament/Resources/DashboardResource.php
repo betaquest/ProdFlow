@@ -157,6 +157,12 @@ class DashboardResource extends Resource
                             ->inline(false)
                             ->helperText('Activado = Solo muestra finalizados del día actual | Desactivado = Muestra todos los finalizados'),
 
+                        Forms\Components\Toggle::make('ocultar_completamente_finalizados')
+                            ->label('✅ Ocultar Programas Completamente Finalizados')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Activado = Oculta programas con todas sus fases completadas | Desactivado = Muestra todos (se marcarán en verde)'),
+
                         Forms\Components\Toggle::make('usar_alias_fases')
                             ->label('📝 Usar Alias de Fases')
                             ->default(false)

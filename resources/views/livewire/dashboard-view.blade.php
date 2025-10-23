@@ -91,23 +91,29 @@
                 @foreach($programas as $programa)
                     @php
                         $tieneAlerta = in_array($programa->id, $programasConAlerta);
-                        $clasesFila = $tieneAlerta
-                            ? 'bg-red-600/40 border-l-8 border-red-500 shadow-lg shadow-red-900/50 hover:bg-red-600/50 animate-pulse-slow'
-                            : ($loop->even ? 'bg-slate-900/40' : 'bg-slate-900/20') . ' hover:bg-slate-800/40';
+                        $estaFinalizado = in_array($programa->id, $programasFinalizados);
+
+                        if ($tieneAlerta) {
+                            $clasesFila = 'bg-red-600/40 border-l-8 border-red-500 shadow-lg shadow-red-900/50 hover:bg-red-600/50 animate-pulse-slow';
+                        } elseif ($estaFinalizado) {
+                            $clasesFila = 'bg-green-600/30 border-l-8 border-green-500 shadow-lg shadow-green-900/50 hover:bg-green-600/40';
+                        } else {
+                            $clasesFila = ($loop->even ? 'bg-slate-900/40' : 'bg-slate-900/20') . ' hover:bg-slate-800/40';
+                        }
                     @endphp
                     <tr class="{{ $clasesFila }} transition-all duration-300">
-                        <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }}">
+                        <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }} {{ $estaFinalizado ? 'font-semibold text-green-200' : '' }}">
                             {{ $programa->proyecto->cliente->nombre }}
                         </td>
-                        <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }}">
+                        <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }} {{ $estaFinalizado ? 'font-semibold text-green-200' : '' }}">
                             {{ $programa->proyecto->nombre }}
                         </td>
                         <td class="py-3 px-2 text-left">
-                            <div class="font-semibold {{ $tieneAlerta ? 'text-red-200' : '' }}">
+                            <div class="font-semibold {{ $tieneAlerta ? 'text-red-200' : '' }} {{ $estaFinalizado ? 'text-green-200' : '' }}">
                                 {{ $programa->nombre }}
                             </div>
                             @if($programa->descripcion)
-                                <div class="text-sm {{ $tieneAlerta ? 'text-red-300' : 'text-slate-400' }} mt-1">
+                                <div class="text-sm {{ $tieneAlerta ? 'text-red-300' : ($estaFinalizado ? 'text-green-300' : 'text-slate-400') }} mt-1">
                                     {{ \Illuminate\Support\Str::limit($programa->descripcion, 80) }}
                                 </div>
                             @endif
@@ -132,12 +138,13 @@
                                 $mostrarLiberar = false;
                                 $mostrarPendiente = false;
 
-                                // Verificar si existe la siguiente fase en el programa
-                                $siguienteFase = $fases->where('orden', '>', $fase->orden)->first();
+                                // Verificar si existe la siguiente fase DENTRO de las configuradas para este programa
+                                $fasesDelPrograma = $fases->whereIn('id', $fasesProgramaIds);
+                                $siguienteFase = $fasesDelPrograma->where('orden', '>', $fase->orden)->first();
 
                                 // Determinar color y estilo basado en estado
                                 if ($estado === 'done') {
-                                    // Si no hay siguiente fase o si ya existe, mostrar como liberada
+                                    // Si no hay siguiente fase configurada, mostrar como liberada
                                     if (!$siguienteFase) {
                                         // Última fase completada - verde brillante
                                         $color = 'bg-green-500 text-black border-2 border-green-300 shadow-lg shadow-green-500/50';
