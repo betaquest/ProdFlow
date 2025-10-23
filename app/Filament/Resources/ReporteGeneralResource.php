@@ -25,6 +25,9 @@ class ReporteGeneralResource extends Resource
     public static function canViewAny(): bool
     {
         $user = auth()->user();
-        return $user && $user->hasRole('Administrador');
+
+        // return $user && $user->hasRole('Administrador');
+        return $user && $user->hasAnyRole(['Administrador', 'Ingenieria']);
+
     }
 }
