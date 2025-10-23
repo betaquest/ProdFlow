@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProgramaResource\Pages;
 use App\Models\Programa;
 use App\Models\User;
+use App\Models\Fase;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -69,6 +70,23 @@ class ProgramaResource extends Resource
                     ->label('Descripción')
                     ->rows(3)
                     ->columnSpanFull(),
+
+                Forms\Components\Section::make('⚙️ Configuración de Fases')
+                    ->description('Selecciona las fases que aplicarán para este programa. Si no seleccionas ninguna, se usarán todas las fases por defecto.')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('fases_configuradas')
+                            ->label('Fases que aplican')
+                            ->options(fn () => Fase::orderBy('orden')->pluck('nombre', 'id'))
+                            ->default(fn () => Fase::orderBy('orden')->pluck('id')->toArray())
+                            ->columns(3)
+                            ->gridDirection('row')
+                            ->bulkToggleable()
+                            ->helperText('Marca las fases que aplicarán para este programa. El orden se respeta según la configuración general de fases.')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(false),
+
                 Forms\Components\Textarea::make('notas')
                     ->label('Notas')
                     ->rows(3)

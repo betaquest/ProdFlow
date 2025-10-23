@@ -113,8 +113,18 @@
                             @endif
                         </td>
 
+                        @php
+                            // Obtener IDs de fases configuradas para este programa
+                            $fasesProgramaIds = $programa->getFasesConfiguradasIds();
+                        @endphp
                         @foreach($fases as $fase)
                             @php
+                                // Solo mostrar si la fase está configurada para este programa
+                                if (!in_array($fase->id, $fasesProgramaIds)) {
+                                    echo '<td class="py-2 px-2 rounded bg-slate-700/30"><span class="text-slate-500 text-xl">—</span></td>';
+                                    continue;
+                                }
+
                                 $avance = $programa->avances->firstWhere('fase_id', $fase->id);
                                 $estado = $avance?->estado ?? 'pending';
 
