@@ -4,7 +4,7 @@
         {{-- IZQUIERDA: LOGO (condicional) --}}
         @if($dashboard->mostrar_logotipo)
             <div class="flex items-center gap-4 flex-shrink-0">
-                <img src="{{ asset('logo.png') }}" alt="Logo" class="h-16 w-auto drop-shadow-lg">
+                <img src="{{ asset('logo_h.png') }}" alt="Logo" class="h-16 w-auto drop-shadow-lg">
             </div>
         @else
             <div class="flex-shrink-0 w-16"></div>
@@ -30,43 +30,47 @@
     </header>
 
     {{-- 📊 BARRA DE ESTADÍSTICAS GLOBALES --}}
-    <section class="bg-slate-800/80 py-4 border-b border-slate-700 text-2xl font-semibold tracking-wide z-10 shadow-inner">
-        <div class="flex justify-center gap-10 mb-3">
-            <div class="flex items-center gap-2 text-green-400">
-                ✅ {{ $totalDone }}
-                <span class="text-slate-300 font-normal">Finalizados</span>
-            </div>
-            <div class="flex items-center gap-2 text-yellow-300">
-                ⏳ {{ $totalProgress }}
-                <span class="text-slate-300 font-normal">En Progreso</span>
-            </div>
-            <div class="flex items-center gap-2 text-slate-400">
-                ⬜ {{ $totalPending }}
-                <span class="text-slate-300 font-normal">Pendientes</span>
-            </div>
-            <div class="flex items-center gap-2 text-sky-400">
-                🔹 {{ $porcentaje }}%
-                <span class="text-slate-300 font-normal">Completado</span>
-            </div>
-        </div>
-
-        {{-- 🚀 BARRA DE PROGRESO ANIMADA CON TEXTO --}}
-        <div class="relative mx-auto w-4/5 h-10 bg-slate-700 rounded-full overflow-hidden shadow-inner">
-            {{-- Barra interna animada --}}
-            <div
-                class="absolute top-0 left-0 h-full rounded-full progress-bar transition-all duration-1000 ease-out"
-                style="width: {{ $porcentaje }}%;">
+    @if($dashboard->mostrar_estadisticas)
+        <section class="bg-slate-800/80 py-4 border-b border-slate-700 text-2xl font-semibold tracking-wide z-10 shadow-inner">
+            <div class="flex justify-center gap-10 {{ $dashboard->mostrar_barra_progreso ? 'mb-3' : '' }}">
+                <div class="flex items-center gap-2 text-green-400">
+                    ✅ {{ $totalDone }}
+                    <span class="text-slate-300 font-normal">Finalizados</span>
+                </div>
+                <div class="flex items-center gap-2 text-yellow-300">
+                    ⏳ {{ $totalProgress }}
+                    <span class="text-slate-300 font-normal">En Progreso</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-400">
+                    ⬜ {{ $totalPending }}
+                    <span class="text-slate-300 font-normal">Pendientes</span>
+                </div>
+                <div class="flex items-center gap-2 text-sky-400">
+                    🔹 {{ $porcentaje }}%
+                    <span class="text-slate-300 font-normal">Completado</span>
+                </div>
             </div>
 
-            {{-- Texto centrado sobre la barra --}}
+            {{-- 🚀 BARRA DE PROGRESO ANIMADA CON TEXTO --}}
+            @if($dashboard->mostrar_barra_progreso)
+                <div class="relative mx-auto w-4/5 h-10 bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                    {{-- Barra interna animada --}}
+                    <div
+                        class="absolute top-0 left-0 h-full rounded-full progress-bar transition-all duration-1000 ease-out"
+                        style="width: {{ $porcentaje }}%;">
+                    </div>
 
-            <div class="absolute inset-0 flex items-center justify-center font-bold tracking-widest text-xl drop-shadow-lg"
-                style="color: {{ $porcentaje >= 70 ? '#bbf7d0' : ($porcentaje >= 40 ? '#fde68a' : '#f1f5f9') }};">
-                {{ $porcentaje }}% COMPLETADO
-            </div>
-        </div>
+                    {{-- Texto centrado sobre la barra --}}
 
-    </section>
+                    <div class="absolute inset-0 flex items-center justify-center font-bold tracking-widest text-xl drop-shadow-lg"
+                        style="color: {{ $porcentaje >= 70 ? '#bbf7d0' : ($porcentaje >= 40 ? '#fde68a' : '#f1f5f9') }};">
+                        {{ $porcentaje }}% COMPLETADO
+                    </div>
+                </div>
+            @endif
+
+        </section>
+    @endif
 
     {{-- 📊 TABLA PRINCIPAL --}}
     <div class="flex-1 p-6 overflow-x-auto relative z-10">
@@ -85,13 +89,25 @@
             </thead>
             <tbody wire:poll.{{ $dashboard->tiempo_actualizacion }}s="loadData">
                 @foreach($programas as $programa)
-                    <tr class="{{ $loop->even ? 'bg-slate-900/40' : 'bg-slate-900/20' }} hover:bg-slate-800/40 transition-colors">
-                        <td class="py-3 px-2 text-left">{{ $programa->proyecto->cliente->nombre }}</td>
-                        <td class="py-3 px-2 text-left">{{ $programa->proyecto->nombre }}</td>
+                    @php
+                        $tieneAlerta = in_array($programa->id, $programasConAlerta);
+                        $clasesFila = $tieneAlerta
+                            ? 'bg-red-600/40 border-l-8 border-red-500 shadow-lg shadow-red-900/50 hover:bg-red-600/50 animate-pulse-slow'
+                            : ($loop->even ? 'bg-slate-900/40' : 'bg-slate-900/20') . ' hover:bg-slate-800/40';
+                    @endphp
+                    <tr class="{{ $clasesFila }} transition-all duration-300">
+                        <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }}">
+                            {{ $programa->proyecto->cliente->nombre }}
+                        </td>
+                        <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }}">
+                            {{ $programa->proyecto->nombre }}
+                        </td>
                         <td class="py-3 px-2 text-left">
-                            <div class="font-semibold">{{ $programa->nombre }}</div>
+                            <div class="font-semibold {{ $tieneAlerta ? 'text-red-200' : '' }}">
+                                {{ $programa->nombre }}
+                            </div>
                             @if($programa->descripcion)
-                                <div class="text-sm text-slate-400 mt-1">
+                                <div class="text-sm {{ $tieneAlerta ? 'text-red-300' : 'text-slate-400' }} mt-1">
                                     {{ \Illuminate\Support\Str::limit($programa->descripcion, 80) }}
                                 </div>
                             @endif
@@ -227,6 +243,21 @@
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
+        }
+
+        @keyframes pulse-slow {
+            0%, 100% {
+                background-color: rgba(220, 38, 38, 0.4);
+                box-shadow: 0 10px 15px -3px rgba(127, 29, 29, 0.5);
+            }
+            50% {
+                background-color: rgba(220, 38, 38, 0.5);
+                box-shadow: 0 10px 15px -3px rgba(127, 29, 29, 0.7);
+            }
+        }
+
+        .animate-pulse-slow {
+            animation: pulse-slow 3s ease-in-out infinite;
         }
 
         th, td {

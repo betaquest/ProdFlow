@@ -69,6 +69,20 @@ class DashboardResource extends Resource
                             ->inline(false)
                             ->helperText('Muestra un reloj en tiempo real'),
 
+                        Forms\Components\Toggle::make('mostrar_estadisticas')
+                            ->label('Mostrar Estadísticas')
+                            ->default(true)
+                            ->inline(false)
+                            ->live()
+                            ->helperText('Muestra la barra completa de estadísticas (contadores + barra de progreso)'),
+
+                        Forms\Components\Toggle::make('mostrar_barra_progreso')
+                            ->label('Mostrar Barra de Progreso')
+                            ->default(true)
+                            ->inline(false)
+                            ->hidden(fn ($get) => !$get('mostrar_estadisticas'))
+                            ->helperText('Muestra la barra de progreso visual (solo aplica si las estadísticas están activas)'),
+
                         Forms\Components\ColorPicker::make('color_fondo')
                             ->label('Color de Fondo')
                             ->helperText('Deja vacío para usar el color por defecto')
@@ -163,6 +177,30 @@ class DashboardResource extends Resource
                     ->columns(1)
                     ->collapsible(),
 
+                Forms\Components\Section::make('⚠️ Alertas de Antigüedad')
+                    ->description('Resalta visualmente programas que llevan demasiado tiempo abiertos sin finalizar')
+                    ->schema([
+                        Forms\Components\Toggle::make('alerta_antiguedad_activa')
+                            ->label('🚨 Activar Alerta por Antigüedad')
+                            ->default(false)
+                            ->inline(false)
+                            ->live()
+                            ->helperText('Marca de rojo las filas de programas que llevan muchos días sin finalizar'),
+
+                        Forms\Components\TextInput::make('alerta_antiguedad_dias')
+                            ->label('⏰ Días para Alerta')
+                            ->numeric()
+                            ->default(7)
+                            ->minValue(1)
+                            ->maxValue(365)
+                            ->suffix('días')
+                            ->hidden(fn ($get) => !$get('alerta_antiguedad_activa'))
+                            ->helperText('Los programas con más de esta cantidad de días abiertos se marcarán de rojo'),
+                    ])
+                    ->columns(1)
+                    ->collapsible()
+                    ->collapsed(),
+
                 Forms\Components\Section::make('Configuración Adicional')
                     ->schema([
                         Forms\Components\TextInput::make('tiempo_actualizacion')
@@ -198,6 +236,14 @@ class DashboardResource extends Resource
                 Tables\Columns\IconColumn::make('mostrar_reloj')
                     ->boolean()
                     ->label('Reloj')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('mostrar_estadisticas')
+                    ->boolean()
+                    ->label('Estadísticas')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('mostrar_barra_progreso')
+                    ->boolean()
+                    ->label('Barra Progreso')
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\ColorColumn::make('color_fondo')
                     ->label('Color')

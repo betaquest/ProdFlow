@@ -24,6 +24,9 @@ class DashboardView extends Component
 
     public float $porcentaje = 0.0;
 
+    // Programas con alerta de antigüedad
+    public array $programasConAlerta = [];
+
     public function mount(Dashboard $dashboard)
     {
         abort_unless($dashboard->activo, 404);
@@ -129,6 +132,29 @@ class DashboardView extends Component
         }
 
         $this->programas = $programas;
+
+        // Calcular alertas de antigüedad
+        $this->programasConAlerta = [];
+        if ($this->dashboard->alerta_antiguedad_activa && $this->dashboard->alerta_antiguedad_dias > 0) {
+            $fechaLimite = now()->subDays($this->dashboard->alerta_antiguedad_dias);
+
+            foreach ($this->programas as $programa) {
+                // Verificar si el programa NO está completamente finalizado
+                $todasFasesCompletadas = true;
+                foreach ($this->fases as $fase) {
+                    $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+                    if (!$avance || $avance->estado !== 'done') {
+                        $todasFasesCompletadas = false;
+                        break;
+                    }
+                }
+
+                // Si no está completado y es más antiguo que el límite, agregar a alertas
+                if (!$todasFasesCompletadas && $programa->created_at < $fechaLimite) {
+                    $this->programasConAlerta[] = $programa->id;
+                }
+            }
+        }
 
         // Recalcular estadísticas
         $this->totalDone = 0;

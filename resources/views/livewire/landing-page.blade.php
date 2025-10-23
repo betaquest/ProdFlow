@@ -23,10 +23,10 @@
                         <img src="{{ asset('logo.png') }}" alt="Logo" class="h-12 w-auto">
                         <div>
                             <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-                                ProdFlow
+                                ARKA
                             </h1>
                             <p class="text-sm text-gray-600 dark:text-gray-400">
-                                Sistema de Gestión de Producción
+                                CABINETS & HOME SOLUTIONS
                             </p>
                         </div>
                     </div>
@@ -60,7 +60,7 @@
             {{-- Título de la sección --}}
             <div class="text-center mb-12">
                 <h2 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
-                    Let's get started
+                    Bienvenido
                 </h2>
                 <p class="text-lg text-gray-600 dark:text-gray-400">
                     Selecciona un dashboard para visualizar el estado de producción en tiempo real
