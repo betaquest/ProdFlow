@@ -28,7 +28,35 @@ class ProgramaResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::where('activo', true)->count();
+        // Contar programas que NO están completados
+        $programas = static::getModel()::with(['avances'])->where('activo', true)->get();
+        $noCompletados = 0;
+
+        foreach ($programas as $programa) {
+            $fasesConfiguradas = $programa->getFasesConfiguradas();
+
+            if ($fasesConfiguradas->isEmpty()) {
+                $noCompletados++;
+                continue;
+            }
+
+            $totalFases = $fasesConfiguradas->count();
+            $fasesCompletadas = 0;
+
+            foreach ($fasesConfiguradas as $fase) {
+                $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+                if ($avance && $avance->estado === 'done') {
+                    $fasesCompletadas++;
+                }
+            }
+
+            // Si no todas las fases están completadas, contar como no completado
+            if ($fasesCompletadas < $totalFases) {
+                $noCompletados++;
+            }
+        }
+
+        return (string) $noCompletados;
     }
 
     public static function getNavigationBadgeColor(): ?string
@@ -102,8 +130,9 @@ class ProgramaResource extends Resource
     {
         return $table
             ->striped()
-            ->defaultSort('nombre', 'asc')
+            ->defaultSort('ultimo_movimiento', 'desc')
             ->defaultPaginationPageOption(50)
+            ->poll('30s')
             ->columns([
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre')
@@ -150,6 +179,52 @@ class ProgramaResource extends Resource
                         $state === 'Sin iniciar' => 'gray',
                         default => 'warning',
                     }),
+                Tables\Columns\TextColumn::make('responsable_actual')
+                    ->label('Responsable')
+                    ->getStateUsing(function ($record) {
+                        $fasesConfiguradas = $record->getFasesConfiguradas();
+
+                        // Buscar la fase en progreso
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance && $avance->estado === 'progress') {
+                                // Buscar usuarios con el rol de esta fase
+                                $usuarios = User::role($fase->nombre)->get();
+                                if ($usuarios->isNotEmpty()) {
+                                    return $usuarios->pluck('name')->join(', ');
+                                }
+                                return '—';
+                            }
+                        }
+
+                        // Si no hay fase en progreso, buscar la última completada
+                        $ultimaFaseCompletada = null;
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance && $avance->estado === 'done') {
+                                $ultimaFaseCompletada = $fase;
+                            }
+                        }
+
+                        if ($ultimaFaseCompletada) {
+                            // Buscar la siguiente fase después de la última completada
+                            $siguienteFase = $fasesConfiguradas->where('orden', '>', $ultimaFaseCompletada->orden)->first();
+                            if ($siguienteFase) {
+                                $usuarios = User::role($siguienteFase->nombre)->get();
+                                if ($usuarios->isNotEmpty()) {
+                                    return $usuarios->pluck('name')->join(', ') . ' (Pendiente)';
+                                }
+                            }
+                        }
+
+                        // Si no hay nada iniciado, mostrar responsable inicial
+                        return $record->responsable_inicial?->name ?? '—';
+                    })
+                    ->searchable(query: function ($query, $search) {
+                        $query->whereHas('responsable_inicial', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        });
+                    }),
                 Tables\Columns\TextColumn::make('estado_proceso')
                     ->label('Estado')
                     ->badge()
@@ -191,15 +266,98 @@ class ProgramaResource extends Resource
                         str_contains($state, '⏸️') => 'info',
                         default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('ultimo_movimiento')
+                    ->label('Último Movimiento')
+                    ->getStateUsing(function ($record) {
+                        // Buscar la fecha más reciente entre todos los avances
+                        $ultimaFecha = $record->avances
+                            ->max('updated_at');
+
+                        if (!$ultimaFecha) {
+                            return $record->created_at;
+                        }
+
+                        return $ultimaFecha;
+                    })
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable(query: function ($query, $direction) {
+                        return $query
+                            ->leftJoin('avance_fases', 'programas.id', '=', 'avance_fases.programa_id')
+                            ->select('programas.*')
+                            ->selectRaw('COALESCE(MAX(avance_fases.updated_at), programas.created_at) as ultimo_movimiento')
+                            ->groupBy('programas.id', 'programas.proyecto_id', 'programas.nombre', 'programas.descripcion', 'programas.fases_configuradas', 'programas.responsable_inicial_id', 'programas.notas', 'programas.activo', 'programas.created_at', 'programas.updated_at')
+                            ->orderBy('ultimo_movimiento', $direction);
+                    })
+                    ->description(fn ($record) => 'Hace ' . $record->avances->max('updated_at')?->diffForHumans() ?? $record->created_at->diffForHumans()),
                 Tables\Columns\IconColumn::make('activo')->label('Activo')->boolean(),
                 Tables\Columns\TextColumn::make('descripcion')->limit(30)->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('notas')->limit(30)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('activo')
-                    ->label('Estado')
+                    ->label('Activo/Inactivo')
                     ->boolean(),
+                Tables\Filters\SelectFilter::make('estado_proceso')
+                    ->label('Estado del Proceso')
+                    ->options([
+                        'en_progreso' => '⏳ En Progreso',
+                        'pausado' => '⏸️ Pausado',
+                        'completado' => '✅ Completado',
+                        'sin_iniciar' => '⬜ Sin Iniciar',
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (!isset($data['value'])) {
+                            return $query;
+                        }
+
+                        $estado = $data['value'];
+
+                        // Obtener IDs de programas que coinciden con el estado
+                        $programasIds = \App\Models\Programa::with(['avances'])
+                            ->get()
+                            ->filter(function ($programa) use ($estado) {
+                                return static::determinarEstadoPrograma($programa) === $estado;
+                            })
+                            ->pluck('id')
+                            ->toArray();
+
+                        return $query->whereIn('id', $programasIds);
+                    }),
             ]);
+    }
+
+    protected static function determinarEstadoPrograma(\App\Models\Programa $programa): string
+    {
+        $fasesConfiguradas = $programa->getFasesConfiguradas();
+
+        if ($fasesConfiguradas->isEmpty()) {
+            return 'sin_iniciar';
+        }
+
+        $totalFases = $fasesConfiguradas->count();
+        $fasesCompletadas = 0;
+        $hayEnProgreso = false;
+
+        foreach ($fasesConfiguradas as $fase) {
+            $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+            if ($avance) {
+                if ($avance->estado === 'done') {
+                    $fasesCompletadas++;
+                } elseif ($avance->estado === 'progress') {
+                    $hayEnProgreso = true;
+                }
+            }
+        }
+
+        if ($fasesCompletadas === $totalFases) {
+            return 'completado';
+        } elseif ($hayEnProgreso) {
+            return 'en_progreso';
+        } elseif ($fasesCompletadas > 0) {
+            return 'pausado';
+        } else {
+            return 'sin_iniciar';
+        }
     }
 
     public static function canViewReports(): bool

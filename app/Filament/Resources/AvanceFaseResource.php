@@ -114,11 +114,38 @@ class AvanceFaseResource extends Resource
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\Action::make('iniciar')
-                        ->label('Iniciar')
                         ->icon('heroicon-o-play')
                         ->color('info')
+                        ->tooltip('Iniciar fase')
                         ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
                         ->action(function (AvanceFase $record) {
+                            // Obtener las fases configuradas para este programa
+                            $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                            $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                                ->orderBy('orden', 'asc')
+                                ->get();
+
+                            // Buscar la fase anterior DENTRO de las configuradas
+                            $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                                ->sortByDesc('orden')
+                                ->first();
+
+                            if ($faseAnterior) {
+                                $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                    ->where('fase_id', $faseAnterior->id)
+                                    ->first();
+
+                                if (!$avanceAnterior || $avanceAnterior->estado !== 'done') {
+                                    Notification::make()
+                                        ->danger()
+                                        ->title('No se puede iniciar')
+                                        ->body("La fase anterior configurada ({$faseAnterior->nombre}) debe estar completada antes de iniciar esta fase.")
+                                        ->duration(6000)
+                                        ->send();
+                                    return;
+                                }
+                            }
+
                             $record->update([
                                 'estado' => 'progress',
                                 'fecha_inicio' => now(),
@@ -133,9 +160,9 @@ class AvanceFaseResource extends Resource
                         ->requiresConfirmation(),
 
                     Tables\Actions\Action::make('finalizar')
-                        ->label('Finalizar')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
+                        ->tooltip('Finalizar fase')
                         ->visible(fn (AvanceFase $record) => $record->estado === 'progress')
                         ->form([
                             Forms\Components\Textarea::make('notas')
@@ -158,17 +185,24 @@ class AvanceFaseResource extends Resource
                         ->requiresConfirmation(),
 
                     Tables\Actions\Action::make('liberar_fase')
-                        ->label('Liberar Siguiente')
                         ->icon('heroicon-o-arrow-right-circle')
                         ->color('warning')
+                        ->tooltip('Liberar siguiente fase')
                         ->visible(function (AvanceFase $record) {
                             // Solo visible si está finalizado
                             if ($record->estado !== 'done') {
                                 return false;
                             }
 
-                            // Verificar si existe siguiente fase
-                            $siguienteFase = $record->fase->siguienteFase();
+                            // Obtener las fases configuradas para este programa
+                            $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                            $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                                ->orderBy('orden', 'asc')
+                                ->get();
+
+                            // Buscar la siguiente fase DENTRO de las configuradas
+                            $siguienteFase = $fasesConfiguradas->where('orden', '>', $record->fase->orden)->first();
+
                             if (!$siguienteFase) {
                                 return false;
                             }
@@ -183,13 +217,21 @@ class AvanceFaseResource extends Resource
                         })
                         ->action(function (AvanceFase $record) {
                             $faseActual = $record->fase;
-                            $siguienteFase = $faseActual->siguienteFase();
+
+                            // Obtener las fases configuradas para este programa
+                            $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                            $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                                ->orderBy('orden', 'asc')
+                                ->get();
+
+                            // Buscar la siguiente fase DENTRO de las configuradas
+                            $siguienteFase = $fasesConfiguradas->where('orden', '>', $faseActual->orden)->first();
 
                             if (!$siguienteFase) {
                                 Notification::make()
                                     ->warning()
                                     ->title('No hay siguiente fase')
-                                    ->body('Esta es la última fase del proceso.')
+                                    ->body('Esta es la última fase configurada para este programa.')
                                     ->send();
                                 return;
                             }
@@ -238,7 +280,120 @@ class AvanceFaseResource extends Resource
                         ->modalDescription('¿Estás seguro de liberar la siguiente fase? Se notificará a los usuarios responsables.')
                         ->modalSubmitActionLabel('Sí, liberar'),
 
-                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\Action::make('deshacer')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('danger')
+                        ->tooltip('Deshacer progreso')
+                        ->visible(function (AvanceFase $record) {
+                            // Solo visible si está en progreso o finalizado
+                            if (!in_array($record->estado, ['progress', 'done'])) {
+                                return false;
+                            }
+
+                            // Verificar que NO haya fases posteriores en progreso o finalizadas
+                            $hayFasesPosterioresActivas = AvanceFase::where('programa_id', $record->programa_id)
+                                ->whereHas('fase', function ($query) use ($record) {
+                                    $query->where('orden', '>', $record->fase->orden);
+                                })
+                                ->whereIn('estado', ['progress', 'done'])
+                                ->exists();
+
+                            // Solo mostrar si NO hay fases posteriores activas
+                            return !$hayFasesPosterioresActivas;
+                        })
+                        ->action(function (AvanceFase $record) {
+                            // Obtener todas las fases posteriores del mismo programa
+                            $fasesPosteriores = AvanceFase::where('programa_id', $record->programa_id)
+                                ->whereHas('fase', function ($query) use ($record) {
+                                    $query->where('orden', '>', $record->fase->orden);
+                                })
+                                ->with('fase')
+                                ->get();
+
+                            // Contador de fases afectadas
+                            $fasesAfectadas = 0;
+
+                            // Deshacer todas las fases posteriores primero (cascada)
+                            foreach ($fasesPosteriores as $fasePost) {
+                                if ($fasePost->estado !== 'pending') {
+                                    $fasePost->update([
+                                        'estado' => 'pending',
+                                        'fecha_inicio' => null,
+                                        'fecha_fin' => null,
+                                    ]);
+                                    $fasesAfectadas++;
+                                }
+                            }
+
+                            // Ahora deshacer la fase actual
+                            if ($record->estado === 'done') {
+                                // Si está finalizado, volver a "en progreso"
+                                $record->update([
+                                    'estado' => 'progress',
+                                    'fecha_fin' => null,
+                                ]);
+
+                                $mensaje = 'La fase ha vuelto a estado "En Progreso"';
+                                if ($fasesAfectadas > 0) {
+                                    $mensaje .= " y se han restablecido {$fasesAfectadas} fase(s) posterior(es) a estado Pendiente.";
+                                }
+
+                                Notification::make()
+                                    ->success()
+                                    ->title('Fase deshecha')
+                                    ->body($mensaje)
+                                    ->duration(5000)
+                                    ->send();
+                            } elseif ($record->estado === 'progress') {
+                                // Si está en progreso, volver a "pendiente"
+                                $record->update([
+                                    'estado' => 'pending',
+                                    'fecha_inicio' => null,
+                                ]);
+
+                                $mensaje = 'La fase ha vuelto a estado "Pendiente"';
+                                if ($fasesAfectadas > 0) {
+                                    $mensaje .= " y se han restablecido {$fasesAfectadas} fase(s) posterior(es) a estado Pendiente.";
+                                }
+
+                                Notification::make()
+                                    ->success()
+                                    ->title('Fase deshecha')
+                                    ->body($mensaje)
+                                    ->duration(5000)
+                                    ->send();
+                            }
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Deshacer Progreso')
+                        ->modalDescription(function (AvanceFase $record) {
+                            // Contar fases posteriores que serán afectadas
+                            $fasesPosteriores = AvanceFase::where('programa_id', $record->programa_id)
+                                ->whereHas('fase', function ($query) use ($record) {
+                                    $query->where('orden', '>', $record->fase->orden);
+                                })
+                                ->where('estado', '!=', 'pending')
+                                ->count();
+
+                            $descripcion = '⚠️ ¿Estás seguro de deshacer el progreso? La fase retrocederá un paso.';
+
+                            if ($fasesPosteriores > 0) {
+                                $descripcion .= "\n\n🔄 IMPORTANTE: También se restablecerán automáticamente {$fasesPosteriores} fase(s) posterior(es) a estado Pendiente para mantener la integridad del proceso.";
+                            }
+
+                            return $descripcion;
+                        })
+                        ->modalSubmitActionLabel('Sí, deshacer'),
+
+                    Tables\Actions\DeleteAction::make()
+                        ->tooltip('Eliminar progreso completamente')
+                        ->visible(fn () => auth()->user()?->hasRole('Administrador') ?? false)
+                        ->modalHeading('Eliminar Progreso Completamente')
+                        ->modalDescription('⚠️ ADVERTENCIA: Esta acción eliminará permanentemente este avance de fase. Solo los administradores pueden realizar esta acción.')
+                        ->modalSubmitActionLabel('Sí, eliminar permanentemente'),
+
+                    Tables\Actions\EditAction::make()
+                        ->tooltip('Editar avance'),
                 ]),
             ])
             ->bulkActions([

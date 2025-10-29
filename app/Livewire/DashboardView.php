@@ -51,7 +51,7 @@ class DashboardView extends Component
 
     public function loadData()
     {
-        $query = Programa::query()->with(['proyecto.cliente', 'avances.fase']);
+        $query = Programa::query()->with(['proyecto.cliente', 'avances.fase'])->where('programas.activo', true);
 
         // Filtrar por clientes si no se muestran todos
         if (!$this->dashboard->todos_clientes && $this->dashboard->clientes_ids) {
@@ -87,6 +87,20 @@ class DashboardView extends Component
                 $query->join('proyectos', 'programas.proyecto_id', '=', 'proyectos.id')
                       ->orderBy('proyectos.nombre', 'asc')
                       ->select('programas.*');
+                break;
+            case 'ultimo_movimiento_desc':
+                $query->leftJoin('avance_fases', 'programas.id', '=', 'avance_fases.programa_id')
+                      ->select('programas.*')
+                      ->selectRaw('COALESCE(MAX(avance_fases.updated_at), programas.created_at) as ultimo_movimiento')
+                      ->groupBy('programas.id')
+                      ->orderBy('ultimo_movimiento', 'desc');
+                break;
+            case 'ultimo_movimiento_asc':
+                $query->leftJoin('avance_fases', 'programas.id', '=', 'avance_fases.programa_id')
+                      ->select('programas.*')
+                      ->selectRaw('COALESCE(MAX(avance_fases.updated_at), programas.created_at) as ultimo_movimiento')
+                      ->groupBy('programas.id')
+                      ->orderBy('ultimo_movimiento', 'asc');
                 break;
             case 'nombre':
             default:

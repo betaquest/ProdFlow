@@ -181,6 +181,8 @@ class DashboardResource extends Resource
                                 'nombre' => 'Por Nombre del Programa',
                                 'cliente' => 'Por Cliente',
                                 'proyecto' => 'Por Proyecto',
+                                'ultimo_movimiento_desc' => '📅 Por Último Movimiento (Más reciente primero)',
+                                'ultimo_movimiento_asc' => '📅 Por Último Movimiento (Más antiguo primero)',
                             ])
                             ->default('nombre')
                             ->required()
