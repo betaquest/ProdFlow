@@ -138,6 +138,14 @@ class ProgramaResource extends Resource
                     ->label('Nombre')
                     ->sortable()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('descripcion')
+                    ->label('Descripción')
+                    ->limit(20)
+                    ->tooltip(function ($record): ?string {
+                        return $record->descripcion;
+                    })
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('proyecto.nombre')
                     ->label('Proyecto')
                     ->formatStateUsing(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')')
@@ -288,10 +296,17 @@ class ProgramaResource extends Resource
                             ->groupBy('programas.id', 'programas.proyecto_id', 'programas.nombre', 'programas.descripcion', 'programas.fases_configuradas', 'programas.responsable_inicial_id', 'programas.notas', 'programas.activo', 'programas.created_at', 'programas.updated_at')
                             ->orderBy('ultimo_movimiento', $direction);
                     })
-                    ->description(fn ($record) => 'Hace ' . $record->avances->max('updated_at')?->diffForHumans() ?? $record->created_at->diffForHumans()),
-                Tables\Columns\IconColumn::make('activo')->label('Activo')->boolean(),
-                Tables\Columns\TextColumn::make('descripcion')->limit(30)->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('notas')->limit(30)->toggleable(isToggledHiddenByDefault: true),
+                    ->description(fn ($record) => 'Hace ' . $record->avances->max('updated_at')?->diffForHumans() ?? $record->created_at->diffForHumans())
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\IconColumn::make('activo')->label('Activo')->boolean()->toggleable(),
+                Tables\Columns\TextColumn::make('notas')
+                    ->label('Notas')
+                    ->limit(20)
+                    ->tooltip(function ($record): ?string {
+                        return $record->notas;
+                    })
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('activo')

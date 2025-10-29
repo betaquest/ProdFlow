@@ -89,6 +89,12 @@ class DashboardResource extends Resource
                             ->hidden(fn ($get) => !$get('mostrar_estadisticas'))
                             ->helperText('Muestra la barra de progreso visual (solo aplica si las estadísticas están activas)'),
 
+                        Forms\Components\Toggle::make('ocultar_footer')
+                            ->label('Ocultar Footer')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Oculta el cuadro inferior donde aparece "Refresca cada X segundos"'),
+
                         Forms\Components\ColorPicker::make('color_fondo')
                             ->label('Color de Fondo')
                             ->helperText('Deja vacío para usar el color por defecto')

@@ -202,9 +202,54 @@
     </div>
 
     {{-- ⚙️ PIE --}}
-    <footer class="text-center text-slate-400 text-sm py-2 border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20">
-        Refresca cada {{ $dashboard->tiempo_actualizacion }} segundos — Última actualización: {{ now()->format('H:i:s') }}
-    </footer>
+    @if(!$dashboard->ocultar_footer)
+        <footer class="text-center text-slate-400 text-sm border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20 relative overflow-hidden">
+            {{-- Texto del footer --}}
+            <div class="relative z-10 py-2">
+                Refresca cada {{ $dashboard->tiempo_actualizacion }} segundos — Última actualización: {{ now()->format('H:i:s') }}
+            </div>
+
+            {{-- Barra de progreso sutil en la parte inferior --}}
+            <div class="absolute bottom-0 left-0 w-full h-1.5 bg-slate-700/50">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-blue-400" style="width: 0%; transition: width 0.5s linear; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div>
+            </div>
+        </footer>
+
+        {{-- Script para animar la barra de progreso --}}
+        <script>
+            (function() {
+                const progressBar = document.getElementById('progress-bar');
+                if (!progressBar) return;
+
+                const updateInterval = {{ $dashboard->tiempo_actualizacion }} * 1000; // Convertir a milisegundos
+                let startTime = Date.now();
+
+                function updateProgress() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min((elapsed / updateInterval) * 100, 100);
+                    progressBar.style.width = progress + '%';
+
+                    if (progress < 100) {
+                        requestAnimationFrame(updateProgress);
+                    }
+                }
+
+                function resetProgress() {
+                    startTime = Date.now();
+                    progressBar.style.width = '0%';
+                    requestAnimationFrame(updateProgress);
+                }
+
+                // Iniciar la animación
+                resetProgress();
+
+                // Reiniciar cuando Livewire actualiza los datos
+                Livewire.hook('message.processed', (message, component) => {
+                    resetProgress();
+                });
+            })();
+        </script>
+    @endif
 
     {{-- 🕒 RELOJ EN TIEMPO REAL --}}
     <script>
