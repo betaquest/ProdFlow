@@ -10,12 +10,16 @@
             <div class="flex-shrink-0 w-16"></div>
         @endif
 
-        {{-- CENTRO: NOMBRE DEL DASHBOARD --}}
-        <div class="flex-1 text-center">
-            <h1 class="text-5xl font-extrabold tracking-widest uppercase text-slate-50 drop-shadow-lg">
-                {{ strtoupper($dashboard->nombre) }}
-            </h1>
-        </div>
+        {{-- CENTRO: NOMBRE DEL DASHBOARD (condicional) --}}
+        @if($dashboard->mostrar_titulo)
+            <div class="flex-1 text-center">
+                <h1 class="text-5xl font-extrabold tracking-widest uppercase text-slate-50 drop-shadow-lg">
+                    {{ strtoupper($dashboard->nombre) }}
+                </h1>
+            </div>
+        @else
+            <div class="flex-1"></div>
+        @endif
 
         {{-- DERECHA: HORA Y FECHA (condicional) --}}
         @if($dashboard->mostrar_reloj)

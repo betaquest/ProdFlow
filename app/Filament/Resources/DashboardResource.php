@@ -63,6 +63,12 @@ class DashboardResource extends Resource
                             ->inline(false)
                             ->helperText('Muestra el logotipo de la empresa en el dashboard'),
 
+                        Forms\Components\Toggle::make('mostrar_titulo')
+                            ->label('Mostrar Título')
+                            ->default(true)
+                            ->inline(false)
+                            ->helperText('Muestra el nombre del dashboard en el encabezado'),
+
                         Forms\Components\Toggle::make('mostrar_reloj')
                             ->label('Mostrar Reloj')
                             ->default(true)
