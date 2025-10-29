@@ -213,6 +213,40 @@ class DashboardResource extends Resource
                     ->collapsible()
                     ->collapsed(),
 
+                Forms\Components\Section::make('🔄 Scroll Automático')
+                    ->description('Configuración de desplazamiento automático para dashboards con muchos programas')
+                    ->schema([
+                        Forms\Components\Toggle::make('auto_scroll_activo')
+                            ->label('✨ Activar Scroll Automático')
+                            ->default(false)
+                            ->inline(false)
+                            ->live()
+                            ->helperText('Desplaza automáticamente el contenido cuando hay más programas de los que caben en pantalla'),
+
+                        Forms\Components\TextInput::make('auto_scroll_velocidad')
+                            ->label('⚡ Velocidad de Scroll')
+                            ->numeric()
+                            ->default(30)
+                            ->minValue(10)
+                            ->maxValue(120)
+                            ->suffix('segundos')
+                            ->hidden(fn ($get) => !$get('auto_scroll_activo'))
+                            ->helperText('Duración del desplazamiento completo de arriba hacia abajo'),
+
+                        Forms\Components\TextInput::make('auto_scroll_pausa')
+                            ->label('⏸️ Pausa al Final')
+                            ->numeric()
+                            ->default(3)
+                            ->minValue(1)
+                            ->maxValue(30)
+                            ->suffix('segundos')
+                            ->hidden(fn ($get) => !$get('auto_scroll_activo'))
+                            ->helperText('Tiempo de espera al llegar arriba o abajo antes de continuar'),
+                    ])
+                    ->columns(1)
+                    ->collapsible()
+                    ->collapsed(),
+
                 Forms\Components\Section::make('Configuración Adicional')
                     ->schema([
                         Forms\Components\TextInput::make('tiempo_actualizacion')

@@ -77,7 +77,7 @@
     @endif
 
     {{-- 📊 TABLA PRINCIPAL --}}
-    <div class="flex-1 p-6 overflow-x-auto relative z-10">
+    <div id="tabla-container" class="flex-1 p-6 overflow-x-auto relative z-10">
         <table class="min-w-full border-collapse w-full text-2xl">
             <thead>
                 <tr class="bg-slate-800 text-slate-100 border-b border-slate-700">
@@ -247,6 +247,159 @@
         document.addEventListener('livewire:navigated', initClock);
         document.addEventListener('livewire:load', initClock);
     </script>
+
+    @if($dashboard->auto_scroll_activo)
+    {{-- 🔄 AUTO-SCROLL ELEGANTE --}}
+    <script>
+        (function() {
+            const container = document.getElementById('tabla-container');
+            if (!container) return;
+
+            const velocidad = {{ $dashboard->auto_scroll_velocidad ?? 30 }}; // segundos
+            const pausa = {{ $dashboard->auto_scroll_pausa ?? 3 }}; // segundos
+
+            let animationId = null;
+            let scrollTimeout = null;
+            let isScrolling = false;
+            let userInteracted = false;
+            let pauseTimeout = null;
+
+            // Función para verificar si hay overflow (más contenido del visible)
+            function hasOverflow() {
+                return container.scrollHeight > container.clientHeight;
+            }
+
+            // Función de animación suave
+            function smoothScroll() {
+                if (!hasOverflow() || userInteracted) {
+                    return;
+                }
+
+                const maxScroll = container.scrollHeight - container.clientHeight;
+                const currentScroll = container.scrollTop;
+                const isAtTop = currentScroll <= 0;
+                const isAtBottom = currentScroll >= maxScroll - 5;
+
+                // Si está en un extremo, hacer pausa
+                if (isAtTop || isAtBottom) {
+                    if (!isScrolling) {
+                        isScrolling = true;
+
+                        // Pausa antes de continuar
+                        pauseTimeout = setTimeout(() => {
+                            isScrolling = false;
+                            startAutoScroll();
+                        }, pausa * 1000);
+
+                        return;
+                    }
+                }
+
+                // Calcular dirección (si está arriba va abajo, si está abajo va arriba)
+                const targetScroll = currentScroll < maxScroll / 2 ? maxScroll : 0;
+                const distance = Math.abs(targetScroll - currentScroll);
+                const duration = velocidad * 1000; // convertir a milisegundos
+                const startTime = performance.now();
+
+                function animate(currentTime) {
+                    if (userInteracted) return;
+
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+
+                    // Easing function (ease-in-out)
+                    const easeProgress = progress < 0.5
+                        ? 2 * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                    const newScroll = currentScroll + (targetScroll - currentScroll) * easeProgress;
+                    container.scrollTop = newScroll;
+
+                    if (progress < 1) {
+                        animationId = requestAnimationFrame(animate);
+                    } else {
+                        // Al completar, esperar pausa y continuar
+                        pauseTimeout = setTimeout(() => {
+                            smoothScroll();
+                        }, pausa * 1000);
+                    }
+                }
+
+                animationId = requestAnimationFrame(animate);
+            }
+
+            function startAutoScroll() {
+                if (!hasOverflow()) {
+                    console.log('No hay suficiente contenido para hacer scroll automático');
+                    return;
+                }
+
+                // Pequeño delay inicial
+                scrollTimeout = setTimeout(() => {
+                    smoothScroll();
+                }, 2000);
+            }
+
+            // Detener auto-scroll cuando el usuario interactúa
+            function stopAutoScroll() {
+                userInteracted = true;
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                if (scrollTimeout) {
+                    clearTimeout(scrollTimeout);
+                    scrollTimeout = null;
+                }
+                if (pauseTimeout) {
+                    clearTimeout(pauseTimeout);
+                    pauseTimeout = null;
+                }
+            }
+
+            // Eventos para detectar interacción del usuario
+            container.addEventListener('wheel', stopAutoScroll, { passive: true });
+            container.addEventListener('touchstart', stopAutoScroll, { passive: true });
+            container.addEventListener('mousedown', stopAutoScroll);
+
+            // Reanudar después de 10 segundos sin interacción
+            let resumeTimeout = null;
+            function scheduleResume() {
+                if (resumeTimeout) clearTimeout(resumeTimeout);
+                resumeTimeout = setTimeout(() => {
+                    userInteracted = false;
+                    startAutoScroll();
+                }, 10000);
+            }
+
+            container.addEventListener('wheel', scheduleResume, { passive: true });
+            container.addEventListener('touchend', scheduleResume, { passive: true });
+            container.addEventListener('mouseup', scheduleResume);
+
+            // Iniciar cuando se carga la página
+            function initAutoScroll() {
+                userInteracted = false;
+                stopAutoScroll(); // Limpiar cualquier animación previa
+                startAutoScroll();
+            }
+
+            // Iniciar al cargar
+            document.addEventListener('DOMContentLoaded', initAutoScroll);
+            document.addEventListener('livewire:navigated', initAutoScroll);
+            document.addEventListener('livewire:load', initAutoScroll);
+
+            // Reiniciar después de actualización de Livewire
+            Livewire.hook('message.processed', (message, component) => {
+                // Esperar a que el DOM se actualice
+                setTimeout(() => {
+                    if (!userInteracted && hasOverflow()) {
+                        startAutoScroll();
+                    }
+                }, 500);
+            });
+        })();
+    </script>
+    @endif
 
     {{-- 🌈 FONDO ANIMADO --}}
     <style>

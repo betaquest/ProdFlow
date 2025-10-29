@@ -30,6 +30,9 @@ class Dashboard extends Model
         'usar_alias_fases',
         'alerta_antiguedad_activa',
         'alerta_antiguedad_dias',
+        'auto_scroll_activo',
+        'auto_scroll_velocidad',
+        'auto_scroll_pausa',
     ];
 
     protected $casts = [
@@ -50,6 +53,9 @@ class Dashboard extends Model
         'usar_alias_fases' => 'boolean',
         'alerta_antiguedad_activa' => 'boolean',
         'alerta_antiguedad_dias' => 'integer',
+        'auto_scroll_activo' => 'boolean',
+        'auto_scroll_velocidad' => 'integer',
+        'auto_scroll_pausa' => 'integer',
     ];
 
     public function getRouteKeyName(): string

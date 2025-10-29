@@ -114,9 +114,86 @@ class ProgramaResource extends Resource
                     ->formatStateUsing(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')')
                     ->sortable()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('fase_actual')
+                    ->label('Fase Actual')
+                    ->badge()
+                    ->getStateUsing(function ($record) {
+                        // Obtener las fases configuradas para este programa
+                        $fasesConfiguradas = $record->getFasesConfiguradas();
+
+                        // Buscar la última fase con estado "progress"
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance && $avance->estado === 'progress') {
+                                return $fase->nombre;
+                            }
+                        }
+
+                        // Si no hay ninguna en progreso, buscar la última fase completada
+                        $ultimaCompletada = null;
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance && $avance->estado === 'done') {
+                                $ultimaCompletada = $fase->nombre;
+                            }
+                        }
+
+                        if ($ultimaCompletada) {
+                            return $ultimaCompletada . ' (Completada)';
+                        }
+
+                        // Si no hay ninguna iniciada, mostrar la primera fase configurada
+                        return $fasesConfiguradas->first()?->nombre ?? 'Sin iniciar';
+                    })
+                    ->color(fn ($state) => match (true) {
+                        str_contains($state, 'Completada') => 'success',
+                        $state === 'Sin iniciar' => 'gray',
+                        default => 'warning',
+                    }),
+                Tables\Columns\TextColumn::make('estado_proceso')
+                    ->label('Estado')
+                    ->badge()
+                    ->getStateUsing(function ($record) {
+                        $fasesConfiguradas = $record->getFasesConfiguradas();
+
+                        if ($fasesConfiguradas->isEmpty()) {
+                            return 'Sin configurar';
+                        }
+
+                        $totalFases = $fasesConfiguradas->count();
+                        $fasesCompletadas = 0;
+                        $hayEnProgreso = false;
+
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance) {
+                                if ($avance->estado === 'done') {
+                                    $fasesCompletadas++;
+                                } elseif ($avance->estado === 'progress') {
+                                    $hayEnProgreso = true;
+                                }
+                            }
+                        }
+
+                        if ($fasesCompletadas === $totalFases) {
+                            return '✅ Completado';
+                        } elseif ($hayEnProgreso) {
+                            return "⏳ En Progreso ($fasesCompletadas/$totalFases)";
+                        } elseif ($fasesCompletadas > 0) {
+                            return "⏸️ Pausado ($fasesCompletadas/$totalFases)";
+                        } else {
+                            return '⬜ Sin Iniciar';
+                        }
+                    })
+                    ->color(fn ($state) => match (true) {
+                        str_contains($state, '✅') => 'success',
+                        str_contains($state, '⏳') => 'warning',
+                        str_contains($state, '⏸️') => 'info',
+                        default => 'gray',
+                    }),
                 Tables\Columns\IconColumn::make('activo')->label('Activo')->boolean(),
-                Tables\Columns\TextColumn::make('descripcion')->limit(30),
-                Tables\Columns\TextColumn::make('notas')->limit(30),
+                Tables\Columns\TextColumn::make('descripcion')->limit(30)->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('notas')->limit(30)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('activo')
