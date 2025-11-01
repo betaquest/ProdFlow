@@ -240,9 +240,32 @@ class AvanceFaseResource extends Resource
                         ->requiresConfirmation(),
 
                     Tables\Actions\Action::make('liberar_fase')
-                        ->icon('heroicon-o-arrow-right-circle')
-                        ->color('warning')
-                        ->tooltip('Liberar siguiente fase')
+                        ->icon(function (AvanceFase $record) {
+                            // Si ya tiene fecha de liberación, mostrar icono de check
+                            if ($record->fecha_liberacion) {
+                                return 'heroicon-o-check-badge';
+                            }
+                            return 'heroicon-o-arrow-right-circle';
+                        })
+                        ->color(function (AvanceFase $record) {
+                            // Si ya tiene fecha de liberación, mostrar en verde
+                            if ($record->fecha_liberacion) {
+                                return 'success';
+                            }
+                            return 'warning';
+                        })
+                        ->label(function (AvanceFase $record) {
+                            if ($record->fecha_liberacion) {
+                                return 'Liberada';
+                            }
+                            return 'Liberar';
+                        })
+                        ->tooltip(function (AvanceFase $record) {
+                            if ($record->fecha_liberacion) {
+                                return 'Fase liberada el ' . $record->fecha_liberacion->format('d/m/Y H:i');
+                            }
+                            return 'Liberar siguiente fase';
+                        })
                         ->visible(function (AvanceFase $record) {
                             // Solo visible si está finalizado
                             if ($record->estado !== 'done') {
@@ -258,18 +281,15 @@ class AvanceFaseResource extends Resource
                             // Buscar la siguiente fase DENTRO de las configuradas
                             $siguienteFase = $fasesConfiguradas->where('orden', '>', $record->fase->orden)->first();
 
+                            // Ocultar si no hay siguiente fase
                             if (!$siguienteFase) {
                                 return false;
                             }
 
-                            // Verificar si la siguiente fase ya fue iniciada o finalizada
-                            $avanceSiguiente = AvanceFase::where('programa_id', $record->programa_id)
-                                ->where('fase_id', $siguienteFase->id)
-                                ->first();
-
-                            // Solo mostrar si NO existe o si está en estado 'pending'
-                            return !$avanceSiguiente || $avanceSiguiente->estado === 'pending';
+                            // SIEMPRE mostrar el botón si hay siguiente fase
+                            return true;
                         })
+                        ->disabled(fn (AvanceFase $record) => $record->fecha_liberacion !== null)
                         ->action(function (AvanceFase $record) {
                             $faseActual = $record->fase;
 
@@ -338,6 +358,7 @@ class AvanceFaseResource extends Resource
                     Tables\Actions\Action::make('deshacer')
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('danger')
+                        ->label('')
                         ->tooltip('Deshacer progreso')
                         ->visible(function (AvanceFase $record) {
                             // Solo visible si está en progreso o finalizado
@@ -441,6 +462,7 @@ class AvanceFaseResource extends Resource
                         ->modalSubmitActionLabel('Sí, deshacer'),
 
                     Tables\Actions\DeleteAction::make()
+                        ->label('')
                         ->tooltip('Eliminar progreso completamente')
                         ->visible(fn () => auth()->user()?->hasRole('Administrador') ?? false)
                         ->modalHeading('Eliminar Progreso Completamente')

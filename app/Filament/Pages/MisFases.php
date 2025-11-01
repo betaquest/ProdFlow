@@ -202,10 +202,73 @@ class MisFases extends Page implements HasTable, HasForms
 
                 Tables\Columns\TextColumn::make('fecha_liberacion')
                     ->label('Liberación')
-                    ->dateTime('d/m/Y H:i')
+                    ->html()
+                    ->formatStateUsing(function (AvanceFase $record): ?string {
+                        if (!$record->fecha_liberacion) {
+                            return null;
+                        }
+
+                        $fecha = $record->fecha_liberacion->format('d/m/Y H:i');
+
+                        // Buscar si hay notas de la fase anterior
+                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                            ->orderBy('orden', 'asc')
+                            ->get();
+
+                        $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                            ->sortByDesc('orden')
+                            ->first();
+
+                        $tieneNotas = false;
+                        if ($faseAnterior) {
+                            $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                ->where('fase_id', $faseAnterior->id)
+                                ->first();
+
+                            if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                $tieneNotas = true;
+                            }
+                        }
+
+                        return $tieneNotas ? $fecha . ' <span style="color: #9ca3af; opacity: 0.7;">📝</span>' : $fecha;
+                    })
                     ->sortable()
                     ->placeholder('—')
-                    ->tooltip('Fecha en que la fase fue liberada'),
+                    ->tooltip(function (AvanceFase $record): ?string {
+                        if (!$record->fecha_liberacion) {
+                            return null;
+                        }
+
+                        $lines = [];
+                        $lines[] = '📅 Liberada: ' . $record->fecha_liberacion->format('d/m/Y H:i');
+
+                        // Buscar la fase anterior para obtener sus notas
+                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                            ->orderBy('orden', 'asc')
+                            ->get();
+
+                        $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                            ->sortByDesc('orden')
+                            ->first();
+
+                        if ($faseAnterior) {
+                            $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                ->where('fase_id', $faseAnterior->id)
+                                ->first();
+
+                            if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                $lines[] = '';
+                                $lines[] = '📝 Notas de ' . $faseAnterior->nombre . ':';
+                                $lines[] = '─────────────────────';
+                                $lines[] = $avanceAnterior->notas_finalizacion;
+                            }
+                        }
+
+                        return implode("\n", $lines);
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('fecha_inicio')
                     ->label('Inicio')
@@ -215,9 +278,37 @@ class MisFases extends Page implements HasTable, HasForms
 
                 Tables\Columns\TextColumn::make('fecha_fin')
                     ->label('Finalización')
-                    ->dateTime('d/m/Y H:i')
+                    ->html()
+                    ->formatStateUsing(function (AvanceFase $record): ?string {
+                        if (!$record->fecha_fin) {
+                            return null;
+                        }
+
+                        $fecha = $record->fecha_fin->format('d/m/Y H:i');
+
+                        // Agregar icono si tiene notas de finalización
+                        return $record->notas_finalizacion ? $fecha . ' <span style="color: #9ca3af; opacity: 0.7;">📝</span>' : $fecha;
+                    })
                     ->sortable()
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->tooltip(function (AvanceFase $record): ?string {
+                        if (!$record->fecha_fin) {
+                            return null;
+                        }
+
+                        $lines = [];
+                        $lines[] = '📅 Finalizada: ' . $record->fecha_fin->format('d/m/Y H:i');
+
+                        // Mostrar las notas de finalización de esta misma fase
+                        if ($record->notas_finalizacion) {
+                            $lines[] = '';
+                            $lines[] = '📝 Notas de finalización:';
+                            $lines[] = '─────────────────────';
+                            $lines[] = $record->notas_finalizacion;
+                        }
+
+                        return implode("\n", $lines);
+                    }),
 
                 Tables\Columns\TextColumn::make('notas')
                     ->label('Notas')
@@ -268,6 +359,8 @@ class MisFases extends Page implements HasTable, HasForms
                     ->modalSubmitActionLabel('Sí, iniciar')
                     ->successNotificationTitle('Fase iniciada exitosamente')
                     ->form(function (AvanceFase $record) {
+                        $formFields = [];
+
                         // Obtener las fases configuradas para este programa
                         $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
                         $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
@@ -285,18 +378,23 @@ class MisFases extends Page implements HasTable, HasForms
                                 ->first();
 
                             if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
-                                return [
-                                    Forms\Components\Placeholder::make('notas_fase_anterior')
-                                        ->label("📝 Notas de la fase anterior ({$faseAnterior->nombre})")
-                                        ->content($avanceAnterior->notas_finalizacion)
-                                        ->columnSpanFull(),
-                                ];
+                                $formFields[] = Forms\Components\Placeholder::make('notas_fase_anterior')
+                                    ->label("📝 Notas de la fase anterior ({$faseAnterior->nombre})")
+                                    ->content($avanceAnterior->notas_finalizacion)
+                                    ->columnSpanFull();
                             }
                         }
 
-                        return [];
+                        // Agregar campo de notas para el inicio
+                        $formFields[] = Forms\Components\Textarea::make('notas')
+                            ->label('Notas de inicio')
+                            ->rows(3)
+                            ->placeholder('Agrega notas o comentarios al iniciar esta fase...')
+                            ->columnSpanFull();
+
+                        return $formFields;
                     })
-                    ->action(function (AvanceFase $record) {
+                    ->action(function (AvanceFase $record, array $data) {
                         // Obtener las fases configuradas para este programa
                         $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
                         $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
@@ -327,6 +425,7 @@ class MisFases extends Page implements HasTable, HasForms
                         $record->update([
                             'estado' => 'progress',
                             'fecha_inicio' => now(),
+                            'notas' => $data['notas'] ?? $record->notas,
                         ]);
                     }),
 
@@ -355,9 +454,58 @@ class MisFases extends Page implements HasTable, HasForms
                     }),
 
                 Tables\Actions\Action::make('liberar_siguiente')
-                    ->icon('heroicon-o-arrow-right-circle')
-                    ->color('warning')
-                    ->tooltip('Liberar siguiente fase')
+                    ->icon(function (AvanceFase $record) {
+                        // Si ya tiene fecha de liberación, mostrar icono de check
+                        if ($record->fecha_liberacion) {
+                            return 'heroicon-o-check-badge';
+                        }
+                        return 'heroicon-o-arrow-right-circle';
+                    })
+                    ->color(function (AvanceFase $record) {
+                        // Si ya tiene fecha de liberación, mostrar en verde
+                        if ($record->fecha_liberacion) {
+                            return 'success';
+                        }
+                        return 'warning';
+                    })
+                    ->label(function (AvanceFase $record) {
+                        if ($record->fecha_liberacion) {
+                            return 'Liberada';
+                        }
+                        return 'Liberar';
+                    })
+                    ->tooltip(function (AvanceFase $record): ?string {
+                        if ($record->fecha_liberacion) {
+                            $lines = [];
+                            $lines[] = '📅 Liberada: ' . $record->fecha_liberacion->format('d/m/Y H:i');
+
+                            // Buscar la fase anterior para obtener sus notas
+                            $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                            $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                                ->orderBy('orden', 'asc')
+                                ->get();
+
+                            $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                                ->sortByDesc('orden')
+                                ->first();
+
+                            if ($faseAnterior) {
+                                $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                    ->where('fase_id', $faseAnterior->id)
+                                    ->first();
+
+                                if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                    $lines[] = '';
+                                    $lines[] = '📝 Notas de ' . $faseAnterior->nombre . ':';
+                                    $lines[] = '─────────────────────';
+                                    $lines[] = $avanceAnterior->notas_finalizacion;
+                                }
+                            }
+
+                            return implode("\n", $lines);
+                        }
+                        return 'Liberar siguiente fase';
+                    })
                     ->visible(function (AvanceFase $record) {
                         // Solo visible si está finalizado
                         if ($record->estado !== 'done') {
@@ -373,18 +521,15 @@ class MisFases extends Page implements HasTable, HasForms
                         // Buscar la siguiente fase DENTRO de las configuradas
                         $siguienteFase = $fasesConfiguradas->where('orden', '>', $record->fase->orden)->first();
 
+                        // Ocultar si no hay siguiente fase
                         if (!$siguienteFase) {
                             return false;
                         }
 
-                        // Verificar si la siguiente fase ya fue iniciada o finalizada
-                        $avanceSiguiente = AvanceFase::where('programa_id', $record->programa_id)
-                            ->where('fase_id', $siguienteFase->id)
-                            ->first();
-
-                        // Solo mostrar si NO existe o si está en estado 'pending'
-                        return !$avanceSiguiente || $avanceSiguiente->estado === 'pending';
+                        // SIEMPRE mostrar el botón si hay siguiente fase
+                        return true;
                     })
+                    ->disabled(fn (AvanceFase $record) => $record->fecha_liberacion !== null)
                     ->requiresConfirmation()
                     ->modalHeading('Liberar Siguiente Fase')
                     ->modalDescription('¿Deseas liberar la siguiente fase del proceso? Los usuarios responsables serán notificados.')
@@ -462,6 +607,7 @@ class MisFases extends Page implements HasTable, HasForms
                 Tables\Actions\Action::make('deshacer')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('danger')
+                    ->label('')
                     ->tooltip('Deshacer progreso')
                     ->visible(function (AvanceFase $record) {
                         // Solo visible si está en progreso o finalizado
@@ -566,6 +712,7 @@ class MisFases extends Page implements HasTable, HasForms
 
                 Tables\Actions\DeleteAction::make()
                     ->icon('heroicon-o-trash')
+                    ->label('')
                     ->tooltip('Eliminar progreso completamente')
                     ->visible(fn () => Auth::user()?->hasRole('Administrador') ?? false)
                     ->modalHeading('Eliminar Progreso Completamente')
@@ -582,6 +729,7 @@ class MisFases extends Page implements HasTable, HasForms
                 Tables\Actions\Action::make('editar_notas')
                     ->icon('heroicon-o-pencil-square')
                     ->color('gray')
+                    ->label('')
                     ->tooltip('Editar notas')
                     ->modalHeading('Editar Notas')
                     ->modalSubmitActionLabel('Guardar')
