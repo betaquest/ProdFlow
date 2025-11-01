@@ -34,6 +34,9 @@ class Dashboard extends Model
         'auto_scroll_activo',
         'auto_scroll_velocidad',
         'auto_scroll_pausa',
+        'modo_visualizacion',
+        'paginacion_cantidad',
+        'paginacion_tiempo',
     ];
 
     protected $casts = [
@@ -58,6 +61,8 @@ class Dashboard extends Model
         'auto_scroll_activo' => 'boolean',
         'auto_scroll_velocidad' => 'integer',
         'auto_scroll_pausa' => 'integer',
+        'paginacion_cantidad' => 'integer',
+        'paginacion_tiempo' => 'integer',
     ];
 
     public function getRouteKeyName(): string

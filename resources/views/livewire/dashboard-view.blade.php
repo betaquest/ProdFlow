@@ -91,8 +91,8 @@
                     @endforeach
                 </tr>
             </thead>
-            <tbody wire:poll.{{ $dashboard->tiempo_actualizacion }}s="loadData">
-                @foreach($programas as $programa)
+            <tbody wire:poll.{{ $dashboard->tiempo_actualizacion }}s="loadData" id="tabla-body">
+                @foreach($programas as $index => $programa)
                     @php
                         $tieneAlerta = in_array($programa->id, $programasConAlerta);
                         $estaFinalizado = in_array($programa->id, $programasFinalizados);
@@ -105,7 +105,7 @@
                             $clasesFila = ($loop->even ? 'bg-slate-900/40' : 'bg-slate-900/20') . ' hover:bg-slate-800/40';
                         }
                     @endphp
-                    <tr class="{{ $clasesFila }} transition-all duration-300">
+                    <tr class="{{ $clasesFila }} transition-all duration-300" data-programa-index="{{ $index }}">
                         <td class="py-3 px-2 text-left {{ $tieneAlerta ? 'font-semibold' : '' }} {{ $estaFinalizado ? 'font-semibold text-green-200' : '' }}">
                             {{ $programa->proyecto->cliente->nombre }}
                         </td>
@@ -293,7 +293,7 @@
         document.addEventListener('livewire:load', initClock);
     </script>
 
-    @if($dashboard->auto_scroll_activo)
+    @if($dashboard->modo_visualizacion === 'scroll')
     {{-- 🔄 AUTO-SCROLL ELEGANTE --}}
     <script>
         (function() {
@@ -441,6 +441,83 @@
                         startAutoScroll();
                     }
                 }, 500);
+            });
+        })();
+    </script>
+    @endif
+
+    @if($dashboard->modo_visualizacion === 'paginacion')
+    {{-- 📄 PAGINACIÓN AUTOMÁTICA --}}
+    <script>
+        (function() {
+            const tbody = document.getElementById('tabla-body');
+            if (!tbody) return;
+
+            const porPagina = {{ $dashboard->paginacion_cantidad ?? 5 }};
+            const tiempoPorPagina = {{ $dashboard->paginacion_tiempo ?? 10 }} * 1000; // Convertir a milisegundos
+
+            let paginaActual = 0;
+            let totalProgramas = 0;
+            let totalPaginas = 0;
+            let intervalId = null;
+
+            function contarProgramas() {
+                const filas = tbody.querySelectorAll('tr[data-programa-index]');
+                totalProgramas = filas.length;
+                totalPaginas = Math.ceil(totalProgramas / porPagina);
+            }
+
+            function mostrarPagina(numeroPagina) {
+                const filas = tbody.querySelectorAll('tr[data-programa-index]');
+                const inicio = numeroPagina * porPagina;
+                const fin = inicio + porPagina;
+
+                filas.forEach((fila, index) => {
+                    if (index >= inicio && index < fin) {
+                        fila.style.display = '';
+                    } else {
+                        fila.style.display = 'none';
+                    }
+                });
+            }
+
+            function siguientePagina() {
+                paginaActual = (paginaActual + 1) % totalPaginas;
+                mostrarPagina(paginaActual);
+            }
+
+            function iniciarPaginacion() {
+                contarProgramas();
+
+                if (totalPaginas <= 1) {
+                    // Si solo hay una página o menos, mostrar todo
+                    mostrarPagina(0);
+                    if (intervalId) {
+                        clearInterval(intervalId);
+                        intervalId = null;
+                    }
+                    return;
+                }
+
+                // Mostrar la primera página
+                paginaActual = 0;
+                mostrarPagina(paginaActual);
+
+                // Configurar el cambio automático
+                if (intervalId) {
+                    clearInterval(intervalId);
+                }
+                intervalId = setInterval(siguientePagina, tiempoPorPagina);
+            }
+
+            // Iniciar al cargar la página
+            document.addEventListener('DOMContentLoaded', iniciarPaginacion);
+            document.addEventListener('livewire:navigated', iniciarPaginacion);
+            document.addEventListener('livewire:load', iniciarPaginacion);
+
+            // Reiniciar después de actualización de Livewire
+            Livewire.hook('message.processed', (message, component) => {
+                setTimeout(iniciarPaginacion, 500);
             });
         })();
     </script>

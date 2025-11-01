@@ -15,12 +15,16 @@ use Filament\Notifications\Notification;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Resources\Components\Tab;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Builder;
 
 class MisFases extends Page implements HasTable, HasForms
 {
     use InteractsWithTable;
     use InteractsWithForms;
+
+    public $activeTab = 'todos';
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
 
@@ -80,6 +84,40 @@ class MisFases extends Page implements HasTable, HasForms
         return $inProgress ? 'warning' : 'danger';
     }
 
+    public function getTabs(): array
+    {
+        $baseQuery = AvanceFase::query();
+
+        // Filtrar por usuario si no es administrador
+        if (!Auth::user()->hasRole('Administrador')) {
+            $baseQuery->where('responsable_id', Auth::id());
+        }
+
+        return [
+            'todos' => Tab::make('Todos')
+                ->icon('heroicon-o-list-bullet')
+                ->badge(fn () => (clone $baseQuery)->count()),
+
+            'pending' => Tab::make('Pendiente')
+                ->icon('heroicon-o-clock')
+                ->badge(fn () => (clone $baseQuery)->where('estado', 'pending')->count())
+                ->badgeColor('gray')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('estado', 'pending')),
+
+            'progress' => Tab::make('En Progreso')
+                ->icon('heroicon-o-arrow-path')
+                ->badge(fn () => (clone $baseQuery)->where('estado', 'progress')->count())
+                ->badgeColor('warning')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('estado', 'progress')),
+
+            'done' => Tab::make('Finalizado')
+                ->icon('heroicon-o-check-circle')
+                ->badge(fn () => (clone $baseQuery)->where('estado', 'done')->count())
+                ->badgeColor('success')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('estado', 'done')),
+        ];
+    }
+
     public function table(Table $table): Table
     {
         $query = AvanceFase::query()->with(['programa.proyecto.cliente', 'fase']);
@@ -90,10 +128,16 @@ class MisFases extends Page implements HasTable, HasForms
             $query->where('responsable_id', Auth::id());
         }
 
+        // Aplicar filtro del tab activo
+        if ($this->activeTab !== 'todos') {
+            $query->where('estado', $this->activeTab);
+        }
+
         return $table
             ->query($query)
             ->striped()
             ->defaultSort('created_at', 'desc')
+            ->defaultPaginationPageOption(25)
             ->columns([
                 Tables\Columns\TextColumn::make('programa.proyecto.cliente.nombre')
                     ->label('Cliente')
@@ -197,9 +241,61 @@ class MisFases extends Page implements HasTable, HasForms
                     ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
                     ->requiresConfirmation()
                     ->modalHeading('Iniciar Fase')
-                    ->modalDescription('¿Deseas iniciar esta fase ahora?')
+                    ->modalDescription(function (AvanceFase $record) {
+                        // Obtener las fases configuradas para este programa
+                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                            ->orderBy('orden', 'asc')
+                            ->get();
+
+                        // Buscar la fase anterior DENTRO de las configuradas
+                        $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                            ->sortByDesc('orden')
+                            ->first();
+
+                        if ($faseAnterior) {
+                            $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                ->where('fase_id', $faseAnterior->id)
+                                ->first();
+
+                            if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                return '¿Deseas iniciar esta fase ahora? La fase anterior dejó las siguientes notas:';
+                            }
+                        }
+
+                        return '¿Deseas iniciar esta fase ahora?';
+                    })
                     ->modalSubmitActionLabel('Sí, iniciar')
                     ->successNotificationTitle('Fase iniciada exitosamente')
+                    ->form(function (AvanceFase $record) {
+                        // Obtener las fases configuradas para este programa
+                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                            ->orderBy('orden', 'asc')
+                            ->get();
+
+                        // Buscar la fase anterior DENTRO de las configuradas
+                        $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                            ->sortByDesc('orden')
+                            ->first();
+
+                        if ($faseAnterior) {
+                            $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                ->where('fase_id', $faseAnterior->id)
+                                ->first();
+
+                            if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                return [
+                                    Forms\Components\Placeholder::make('notas_fase_anterior')
+                                        ->label("📝 Notas de la fase anterior ({$faseAnterior->nombre})")
+                                        ->content($avanceAnterior->notas_finalizacion)
+                                        ->columnSpanFull(),
+                                ];
+                            }
+                        }
+
+                        return [];
+                    })
                     ->action(function (AvanceFase $record) {
                         // Obtener las fases configuradas para este programa
                         $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
@@ -245,16 +341,16 @@ class MisFases extends Page implements HasTable, HasForms
                     ->modalSubmitActionLabel('Sí, finalizar')
                     ->successNotificationTitle('Fase completada exitosamente')
                     ->form([
-                        Forms\Components\Textarea::make('notas')
-                            ->label('Notas finales (opcional)')
+                        Forms\Components\Textarea::make('notas_finalizacion')
+                            ->label('Notas para la siguiente fase')
                             ->rows(3)
-                            ->placeholder('Agrega comentarios sobre esta fase...'),
+                            ->placeholder('Agrega comentarios o instrucciones para la fase siguiente...'),
                     ])
                     ->action(function (AvanceFase $record, array $data) {
                         $record->update([
                             'estado' => 'done',
                             'fecha_fin' => now(),
-                            'notas' => $data['notas'] ?? $record->notas,
+                            'notas_finalizacion' => $data['notas_finalizacion'] ?? null,
                         ]);
                     }),
 

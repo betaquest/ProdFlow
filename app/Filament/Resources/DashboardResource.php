@@ -221,16 +221,22 @@ class DashboardResource extends Resource
                     ->collapsible()
                     ->collapsed(),
 
-                Forms\Components\Section::make('🔄 Scroll Automático')
-                    ->description('Configuración de desplazamiento automático para dashboards con muchos programas')
+                Forms\Components\Section::make('📺 Modo de Visualización')
+                    ->description('Elige cómo mostrar los programas cuando no caben en una sola pantalla')
                     ->schema([
-                        Forms\Components\Toggle::make('auto_scroll_activo')
-                            ->label('✨ Activar Scroll Automático')
-                            ->default(false)
-                            ->inline(false)
+                        Forms\Components\Select::make('modo_visualizacion')
+                            ->label('🎬 Modo de Visualización')
+                            ->options([
+                                'estatico' => 'Estático (sin movimiento)',
+                                'scroll' => 'Scroll Automático (desplazamiento continuo)',
+                                'paginacion' => 'Paginación Automática (mostrar X por pantalla)',
+                            ])
+                            ->default('estatico')
+                            ->required()
                             ->live()
-                            ->helperText('Desplaza automáticamente el contenido cuando hay más programas de los que caben en pantalla'),
+                            ->helperText('Selecciona cómo quieres mostrar los programas'),
 
+                        // Opciones para modo SCROLL
                         Forms\Components\TextInput::make('auto_scroll_velocidad')
                             ->label('⚡ Velocidad de Scroll')
                             ->numeric()
@@ -238,7 +244,7 @@ class DashboardResource extends Resource
                             ->minValue(10)
                             ->maxValue(120)
                             ->suffix('segundos')
-                            ->hidden(fn ($get) => !$get('auto_scroll_activo'))
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'scroll')
                             ->helperText('Duración del desplazamiento completo de arriba hacia abajo'),
 
                         Forms\Components\TextInput::make('auto_scroll_pausa')
@@ -248,8 +254,29 @@ class DashboardResource extends Resource
                             ->minValue(1)
                             ->maxValue(30)
                             ->suffix('segundos')
-                            ->hidden(fn ($get) => !$get('auto_scroll_activo'))
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'scroll')
                             ->helperText('Tiempo de espera al llegar arriba o abajo antes de continuar'),
+
+                        // Opciones para modo PAGINACIÓN
+                        Forms\Components\TextInput::make('paginacion_cantidad')
+                            ->label('📄 Programas por Página')
+                            ->numeric()
+                            ->default(5)
+                            ->minValue(1)
+                            ->maxValue(50)
+                            ->suffix('programas')
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'paginacion')
+                            ->helperText('Cantidad de programas a mostrar por vez (ejemplo: 5, 10, 15)'),
+
+                        Forms\Components\TextInput::make('paginacion_tiempo')
+                            ->label('⏱️ Tiempo por Página')
+                            ->numeric()
+                            ->default(10)
+                            ->minValue(3)
+                            ->maxValue(60)
+                            ->suffix('segundos')
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'paginacion')
+                            ->helperText('Cuántos segundos mostrar cada grupo de programas antes de cambiar'),
                     ])
                     ->columns(1)
                     ->collapsible()

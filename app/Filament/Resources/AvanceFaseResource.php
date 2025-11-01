@@ -118,6 +118,60 @@ class AvanceFaseResource extends Resource
                         ->color('info')
                         ->tooltip('Iniciar fase')
                         ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
+                        ->modalHeading('Iniciar Fase')
+                        ->modalDescription(function (AvanceFase $record) {
+                            // Obtener las fases configuradas para este programa
+                            $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                            $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                                ->orderBy('orden', 'asc')
+                                ->get();
+
+                            // Buscar la fase anterior DENTRO de las configuradas
+                            $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                                ->sortByDesc('orden')
+                                ->first();
+
+                            if ($faseAnterior) {
+                                $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                    ->where('fase_id', $faseAnterior->id)
+                                    ->first();
+
+                                if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                    return '¿Deseas iniciar esta fase ahora? La fase anterior dejó las siguientes notas:';
+                                }
+                            }
+
+                            return '¿Deseas iniciar esta fase ahora?';
+                        })
+                        ->form(function (AvanceFase $record) {
+                            // Obtener las fases configuradas para este programa
+                            $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                            $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                                ->orderBy('orden', 'asc')
+                                ->get();
+
+                            // Buscar la fase anterior DENTRO de las configuradas
+                            $faseAnterior = $fasesConfiguradas->where('orden', '<', $record->fase->orden)
+                                ->sortByDesc('orden')
+                                ->first();
+
+                            if ($faseAnterior) {
+                                $avanceAnterior = AvanceFase::where('programa_id', $record->programa_id)
+                                    ->where('fase_id', $faseAnterior->id)
+                                    ->first();
+
+                                if ($avanceAnterior && $avanceAnterior->notas_finalizacion) {
+                                    return [
+                                        Forms\Components\Placeholder::make('notas_fase_anterior')
+                                            ->label("📝 Notas de la fase anterior ({$faseAnterior->nombre})")
+                                            ->content($avanceAnterior->notas_finalizacion)
+                                            ->columnSpanFull(),
+                                    ];
+                                }
+                            }
+
+                            return [];
+                        })
                         ->action(function (AvanceFase $record) {
                             // Obtener las fases configuradas para este programa
                             $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
@@ -165,15 +219,16 @@ class AvanceFaseResource extends Resource
                         ->tooltip('Finalizar fase')
                         ->visible(fn (AvanceFase $record) => $record->estado === 'progress')
                         ->form([
-                            Forms\Components\Textarea::make('notas')
-                                ->label('Notas finales (opcional)')
-                                ->rows(3),
+                            Forms\Components\Textarea::make('notas_finalizacion')
+                                ->label('Notas para la siguiente fase')
+                                ->rows(3)
+                                ->placeholder('Agrega comentarios o instrucciones para la fase siguiente...'),
                         ])
                         ->action(function (AvanceFase $record, array $data) {
                             $record->update([
                                 'estado' => 'done',
                                 'fecha_fin' => now(),
-                                'notas' => $data['notas'] ?? $record->notas,
+                                'notas_finalizacion' => $data['notas_finalizacion'] ?? null,
                             ]);
 
                             Notification::make()

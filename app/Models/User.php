@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'active',
+        'area_id',
     ];
 
     /**
@@ -49,5 +50,11 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
         ];
+    }
+
+    // Relación: Un usuario pertenece a un área
+    public function area()
+    {
+        return $this->belongsTo(Area::class);
     }
 }

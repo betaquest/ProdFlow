@@ -19,6 +19,7 @@ class AvanceFase extends Model
         'fecha_fin',
         'fecha_liberacion',
         'notas',
+        'notas_finalizacion',
         'activo',
     ];
 

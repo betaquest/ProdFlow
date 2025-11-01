@@ -49,20 +49,28 @@ class UserResource extends Resource
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
 
+                Forms\Components\Select::make('area_id')
+                    ->label('Área')
+                    ->relationship('area', 'nombre')
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->helperText('Selecciona el área a la que pertenece el usuario'),
+
                 Forms\Components\TextInput::make('password')
                     ->password()
                     ->dehydrated(fn ($state) => filled($state))
                     ->required(fn ($context) => $context === 'create')
                     ->maxLength(255),
 
-                Forms\Components\Select::make('roles')
-                    ->label('Rol')
-                    ->relationship('roles', 'name') // Usa la relación de Spatie
-                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->name)
-                    ->preload()
-                    ->searchable()
+                Forms\Components\CheckboxList::make('roles')
+                    ->label('Roles')
+                    ->relationship('roles', 'name')
+                    ->columns(2)
+                    ->gridDirection('row')
+                    ->bulkToggleable()
                     ->required()
-                    ->multiple(false),
+                    ->helperText('Selecciona uno o más roles para este usuario'),
 
                 Forms\Components\Toggle::make('active')
                     ->label('Activo')
@@ -90,10 +98,18 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->label('Correo')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('area.nombre')
+                    ->label('Área')
+                    ->badge()
+                    ->color('success')
+                    ->placeholder('Sin área')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('roles.name')
-                    ->label('Rol')
+                    ->label('Roles')
                     ->badge()
                     ->color('info')
+                    ->separator(',')
+                    ->wrap()
                     ->sortable(),
                 Tables\Columns\IconColumn::make('active')
                     ->label('Activo')
