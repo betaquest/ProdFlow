@@ -239,7 +239,7 @@ class MisFases extends Page implements HasTable, HasForms
                 ELSE 5
             END
         ")
-        ->orderBy('updated_at', 'desc');
+        ->orderByRaw('GREATEST(created_at, updated_at) DESC');
 
         return $table
             ->query($query)
