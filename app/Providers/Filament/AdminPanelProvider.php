@@ -56,6 +56,12 @@ class AdminPanelProvider extends PanelProvider
                 // Widgets\FilamentInfoWidget::class,
                 \App\Filament\Widgets\DashboardGeneral::class,
             ])
+            ->userMenuItems([
+                'area' => \Filament\Navigation\MenuItem::make()
+                    ->label(fn () => Auth::user()?->area?->nombre ?? 'Sin área asignada')
+                    ->icon('heroicon-o-building-office-2')
+                    ->url(null),
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
