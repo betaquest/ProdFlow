@@ -229,10 +229,29 @@ class MisFases extends Page implements HasTable, HasForms
             $query->where('estado', $this->activeTab);
         }
 
+        // Ordenamiento multinivel inteligente
+        $query->orderByRaw("
+            CASE
+                WHEN estado = 'progress' THEN 1
+                WHEN estado = 'pending' AND fecha_liberacion IS NOT NULL THEN 2
+                WHEN estado = 'pending' AND fecha_liberacion IS NULL THEN 3
+                WHEN estado = 'done' THEN 4
+                ELSE 5
+            END
+        ")
+        ->orderByRaw("
+            CASE
+                WHEN estado = 'progress' THEN fecha_inicio
+                WHEN estado = 'pending' AND fecha_liberacion IS NOT NULL THEN fecha_liberacion
+                WHEN estado = 'pending' AND fecha_liberacion IS NULL THEN created_at
+                WHEN estado = 'done' THEN fecha_fin
+                ELSE created_at
+            END ASC
+        ");
+
         return $table
             ->query($query)
             ->striped()
-            ->defaultSort('created_at', 'desc')
             ->defaultPaginationPageOption(25)
             ->columns([
                 Tables\Columns\TextColumn::make('programa.proyecto.cliente.nombre')
