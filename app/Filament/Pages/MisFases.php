@@ -239,15 +239,7 @@ class MisFases extends Page implements HasTable, HasForms
                 ELSE 5
             END
         ")
-        ->orderByRaw("
-            CASE
-                WHEN estado = 'progress' THEN fecha_inicio
-                WHEN estado = 'pending' AND fecha_liberacion IS NOT NULL THEN fecha_liberacion
-                WHEN estado = 'pending' AND fecha_liberacion IS NULL THEN created_at
-                WHEN estado = 'done' THEN fecha_fin
-                ELSE created_at
-            END ASC
-        ");
+        ->orderBy('updated_at', 'desc');
 
         return $table
             ->query($query)
