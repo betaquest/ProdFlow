@@ -48,6 +48,12 @@ class FaseResource extends Resource
                     ->numeric()
                     ->default(fn () => Fase::max('orden') + 1)
                     ->helperText('Orden secuencial de la fase (menor número = primera fase)'),
+                Forms\Components\Select::make('area_id')
+                    ->label('Área')
+                    ->relationship('area', 'nombre')
+                    ->nullable()
+                    ->helperText('Área responsable de esta fase')
+                    ->columnSpanFull(),
                 Forms\Components\Toggle::make('requiere_aprobacion')
                     ->label('Requiere Aprobación')
                     ->default(true)
@@ -79,6 +85,11 @@ class FaseResource extends Resource
                     ->searchable()
                     ->placeholder('-')
                     ->color('gray'),
+                Tables\Columns\TextColumn::make('area.nombre')
+                    ->label('Área')
+                    ->badge()
+                    ->color('success')
+                    ->placeholder('Sin área asignada'),
                 Tables\Columns\IconColumn::make('requiere_aprobacion')
                     ->label('Requiere Aprobación')
                     ->boolean()

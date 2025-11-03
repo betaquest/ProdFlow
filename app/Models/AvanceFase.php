@@ -14,6 +14,7 @@ class AvanceFase extends Model
         'programa_id',
         'fase_id',
         'responsable_id',
+        'area_id',
         'estado',
         'fecha_inicio',
         'fecha_fin',
@@ -43,6 +44,11 @@ class AvanceFase extends Model
     public function responsable()
     {
         return $this->belongsTo(User::class, 'responsable_id');
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(Area::class);
     }
 
     public function getActivitylogOptions(): LogOptions

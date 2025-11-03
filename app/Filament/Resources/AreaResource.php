@@ -47,6 +47,14 @@ class AreaResource extends Resource
                     ->maxLength(65535)
                     ->columnSpanFull(),
 
+                Forms\Components\Select::make('roles')
+                    ->label('Roles del Área')
+                    ->multiple()
+                    ->relationship('roles', 'name')
+                    ->preload()
+                    ->helperText('Los usuarios de esta área heredarán estos roles y sus permisos')
+                    ->columnSpanFull(),
+
                 Forms\Components\Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)
@@ -77,6 +85,14 @@ class AreaResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color('info'),
+
+                Tables\Columns\TextColumn::make('roles.name')
+                    ->label('Roles')
+                    ->badge()
+                    ->color('success')
+                    ->separator(',')
+                    ->limit(30)
+                    ->placeholder('Sin roles'),
 
                 Tables\Columns\IconColumn::make('activo')
                     ->label('Activo')

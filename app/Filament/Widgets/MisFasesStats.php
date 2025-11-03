@@ -11,22 +11,26 @@ class MisFasesStats extends BaseWidget
 {
     protected function getStats(): array
     {
-        $userId = Auth::id();
+        $user = Auth::user();
 
-        $totalFases = AvanceFase::where('responsable_id', $userId)->count();
-        $pendientes = AvanceFase::where('responsable_id', $userId)
-            ->where('estado', 'pending')
-            ->count();
-        $enProgreso = AvanceFase::where('responsable_id', $userId)
-            ->where('estado', 'progress')
-            ->count();
-        $completadas = AvanceFase::where('responsable_id', $userId)
-            ->where('estado', 'done')
-            ->count();
+        // Filtrar por área del usuario (o todo si es administrador)
+        $query = AvanceFase::query();
+        if (!$user->hasRole('Administrador')) {
+            $query->where('area_id', $user->area_id);
+        }
+
+        $totalFases = (clone $query)->count();
+        $pendientes = (clone $query)->where('estado', 'pending')->count();
+        $enProgreso = (clone $query)->where('estado', 'progress')->count();
+        $completadas = (clone $query)->where('estado', 'done')->count();
+
+        $descripcionTotal = $user->hasRole('Administrador')
+            ? 'Fases totales en el sistema'
+            : 'Fases de tu área';
 
         return [
             Stat::make('Total Asignadas', $totalFases)
-                ->description('Fases totales asignadas a ti')
+                ->description($descripcionTotal)
                 ->descriptionIcon('heroicon-o-clipboard-document-list')
                 ->color('info')
                 ->chart([7, 12, 8, 15, 10, 18, $totalFases]),
@@ -38,7 +42,7 @@ class MisFasesStats extends BaseWidget
                 ->chart([$pendientes, $pendientes - 1, $pendientes + 2, $pendientes]),
 
             Stat::make('En Progreso', $enProgreso)
-                ->description('Fases en las que estás trabajando')
+                ->description('Fases en las que están trabajando')
                 ->descriptionIcon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->chart([$enProgreso - 1, $enProgreso + 1, $enProgreso - 2, $enProgreso]),

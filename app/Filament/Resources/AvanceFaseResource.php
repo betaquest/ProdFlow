@@ -49,6 +49,11 @@ class AvanceFaseResource extends Resource
                     ->relationship('fase', 'nombre')
                     ->required()
                     ->columnSpanFull(),
+                Forms\Components\Select::make('area_id')
+                    ->label('Área')
+                    ->relationship('area', 'nombre')
+                    ->nullable()
+                    ->columnSpanFull(),
                 Forms\Components\Select::make('responsable_id')
                     ->label('Responsable')
                     ->relationship('responsable', 'name')
@@ -89,7 +94,14 @@ class AvanceFaseResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('programa.nombre')->label('Programa')->sortable(),
                 Tables\Columns\TextColumn::make('fase.nombre')->label('Fase')->sortable(),
-                Tables\Columns\TextColumn::make('responsable.name')->label('Responsable'),
+                Tables\Columns\TextColumn::make('area.nombre')
+                    ->label('Área')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('Sin área'),
+                Tables\Columns\TextColumn::make('responsable.name')
+                    ->label('Responsable')
+                    ->placeholder('Sin asignar'),
                 Tables\Columns\BadgeColumn::make('estado')
                     ->colors([
                         'secondary' => 'pending',

@@ -28,11 +28,15 @@ class ProgramaObserver
                 $responsableId = $ingenieriaUser?->id ?? Auth::id();
             }
 
+            // Determinar el area_id usando el método inteligente de la fase
+            $areaId = $primeraFase->determinarArea();
+
             // Crear avance de fase automáticamente
             AvanceFase::create([
                 'programa_id' => $programa->id,
                 'fase_id' => $primeraFase->id,
                 'responsable_id' => $responsableId,
+                'area_id' => $areaId,
                 'estado' => 'pending',
                 'activo' => true,
             ]);

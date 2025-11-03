@@ -137,20 +137,24 @@ class ProgramaResource extends Resource
                 Tables\Columns\TextColumn::make('nombre')
                     ->label('Nombre')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->wrap(),
                 Tables\Columns\TextColumn::make('descripcion')
                     ->label('Descripción')
-                    ->limit(20)
+                    ->limit(15)
                     ->tooltip(function ($record): ?string {
                         return $record->descripcion;
                     })
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable()
+                    ->toggledHiddenByDefault(),
                 Tables\Columns\TextColumn::make('proyecto.nombre')
                     ->label('Proyecto')
                     ->formatStateUsing(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->limit(25)
+                    ->tooltip(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')'),
                 Tables\Columns\TextColumn::make('fase_actual')
                     ->label('Fase Actual')
                     ->badge()
@@ -228,11 +232,49 @@ class ProgramaResource extends Resource
                         // Si no hay nada iniciado, mostrar responsable inicial
                         return $record->responsable_inicial?->name ?? '—';
                     })
+                    ->limit(15)
+                    ->tooltip(function ($record): ?string {
+                        $fasesConfiguradas = $record->getFasesConfiguradas();
+
+                        // Buscar la fase en progreso
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance && $avance->estado === 'progress') {
+                                $usuarios = User::role($fase->nombre)->get();
+                                if ($usuarios->isNotEmpty()) {
+                                    return $usuarios->pluck('name')->join(', ');
+                                }
+                                return null;
+                            }
+                        }
+
+                        // Si no hay fase en progreso, buscar la última completada
+                        $ultimaFaseCompletada = null;
+                        foreach ($fasesConfiguradas as $fase) {
+                            $avance = $record->avances->firstWhere('fase_id', $fase->id);
+                            if ($avance && $avance->estado === 'done') {
+                                $ultimaFaseCompletada = $fase;
+                            }
+                        }
+
+                        if ($ultimaFaseCompletada) {
+                            $siguienteFase = $fasesConfiguradas->where('orden', '>', $ultimaFaseCompletada->orden)->first();
+                            if ($siguienteFase) {
+                                $usuarios = User::role($siguienteFase->nombre)->get();
+                                if ($usuarios->isNotEmpty()) {
+                                    return $usuarios->pluck('name')->join(', ') . ' (Pendiente)';
+                                }
+                            }
+                        }
+
+                        return $record->responsable_inicial?->name ?? null;
+                    })
                     ->searchable(query: function ($query, $search) {
                         $query->whereHas('responsable_inicial', function ($q) use ($search) {
                             $q->where('name', 'like', "%{$search}%");
                         });
-                    }),
+                    })
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('estado_proceso')
                     ->label('Estado')
                     ->badge()
@@ -338,6 +380,20 @@ class ProgramaResource extends Resource
 
                         return $query->whereIn('id', $programasIds);
                     }),
+            ])
+            ->actions([
+                Tables\Actions\Action::make('timeline')
+                    ->label('')
+                    ->icon('heroicon-o-clock')
+                    ->color('info')
+                    ->tooltip('Ver Timeline')
+                    ->url(fn (Programa $record): string => static::getUrl('timeline', ['record' => $record])),
+                Tables\Actions\EditAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
             ]);
     }
 
@@ -401,6 +457,7 @@ class ProgramaResource extends Resource
             'index' => Pages\ListProgramas::route('/'),
             'create' => Pages\CreatePrograma::route('/create'),
             'edit' => Pages\EditPrograma::route('/{record}/edit'),
+            'timeline' => Pages\TimelinePrograma::route('/{record}/timeline'),
             'reportes' => Pages\ReportesProgramas::route('/reportes'),
         ];
     }

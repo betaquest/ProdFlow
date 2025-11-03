@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Fase extends Model
 {
     protected $fillable = [
-        'nombre', 'alias', 'orden', 'requiere_aprobacion', 'estado',
+        'nombre', 'alias', 'orden', 'area_id', 'requiere_aprobacion', 'estado',
     ];
 
     protected $casts = [
@@ -22,6 +22,11 @@ class Fase extends Model
     public function avances()
     {
         return $this->hasMany(AvanceFase::class);
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(Area::class);
     }
 
     /**
@@ -60,5 +65,51 @@ class Fase extends Model
             ->first();
 
         return $avanceAnterior && $avanceAnterior->estado === 'done';
+    }
+
+    /**
+     * Determinar el área para esta fase de forma inteligente
+     * Prioridad:
+     * 1. Si la fase tiene area_id configurado, usar ese
+     * 2. Buscar área cuyo nombre coincida exactamente con el nombre de la fase
+     * 3. Buscar área cuyo nombre coincida parcialmente con el nombre o alias
+     * 4. Buscar el primer usuario con rol que coincida con el nombre de la fase y usar su área
+     * 5. Retornar null si no se encuentra
+     */
+    public function determinarArea(): ?int
+    {
+        // Prioridad 1: Si ya tiene área asignada
+        if ($this->area_id) {
+            return $this->area_id;
+        }
+
+        // Prioridad 2: Buscar área con nombre exacto
+        $area = Area::where('nombre', $this->nombre)->first();
+        if ($area) {
+            return $area->id;
+        }
+
+        // Prioridad 3: Buscar área con nombre parcial (ignorando mayúsculas/minúsculas)
+        $area = Area::whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($this->nombre) . '%'])->first();
+        if ($area) {
+            return $area->id;
+        }
+
+        // También intentar con el alias
+        if ($this->alias) {
+            $area = Area::whereRaw('LOWER(nombre) LIKE ?', ['%' . strtolower($this->alias) . '%'])->first();
+            if ($area) {
+                return $area->id;
+            }
+        }
+
+        // Prioridad 4: Buscar usuario con rol que coincida con el nombre de la fase
+        $usuario = User::role($this->nombre)->first();
+        if ($usuario && $usuario->area_id) {
+            return $usuario->area_id;
+        }
+
+        // No se encontró área
+        return null;
     }
 }

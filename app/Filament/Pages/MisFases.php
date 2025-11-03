@@ -5,6 +5,8 @@ namespace App\Filament\Pages;
 use App\Models\AvanceFase;
 use App\Models\Fase;
 use App\Models\User;
+use App\Models\Programa;
+use App\Models\Proyecto;
 use App\Notifications\FaseLiberada;
 use Filament\Pages\Page;
 use Filament\Tables;
@@ -16,6 +18,8 @@ use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Resources\Components\Tab;
+use Filament\Actions;
+use Filament\Actions\Action;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -46,9 +50,9 @@ class MisFases extends Page implements HasTable, HasForms
         $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
 
         // Solo el Administrador ve el total de todas las tareas
-        // Los demás usuarios solo ven las suyas
+        // Los demás usuarios solo ven las de su área
         if (!Auth::user()->hasRole('Administrador')) {
-            $query->where('responsable_id', Auth::id());
+            $query->where('area_id', Auth::user()->area_id);
         }
 
         $count = $query->count();
@@ -61,9 +65,9 @@ class MisFases extends Page implements HasTable, HasForms
         $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
 
         // Solo el Administrador ve el total de todas las tareas
-        // Los demás usuarios solo ven las suyas
+        // Los demás usuarios solo ven las de su área
         if (!Auth::user()->hasRole('Administrador')) {
-            $query->where('responsable_id', Auth::id());
+            $query->where('area_id', Auth::user()->area_id);
         }
 
         $count = $query->count();
@@ -76,7 +80,7 @@ class MisFases extends Page implements HasTable, HasForms
         $queryInProgress = AvanceFase::where('estado', 'progress');
 
         if (!Auth::user()->hasRole('Administrador')) {
-            $queryInProgress->where('responsable_id', Auth::id());
+            $queryInProgress->where('area_id', Auth::user()->area_id);
         }
 
         $inProgress = $queryInProgress->exists();
@@ -84,13 +88,105 @@ class MisFases extends Page implements HasTable, HasForms
         return $inProgress ? 'warning' : 'danger';
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('crearPrograma')
+                ->label('Crear Programa')
+                ->icon('heroicon-o-plus')
+                ->color('success')
+                ->visible(function () {
+                    $user = Auth::user();
+                    // Verificar si el usuario tiene permiso para crear programas
+                    return $user->can('programas.crear') ||
+                           $user->hasRole('Administrador') ||
+                           ($user->area && $user->area->hasPermission('programas.crear'));
+                })
+                ->slideOver()
+                ->form([
+                    Forms\Components\Select::make('proyecto_id')
+                        ->label('Proyecto')
+                        ->options(function () {
+                            return Proyecto::with('cliente')->get()->mapWithKeys(function ($proyecto) {
+                                return [$proyecto->id => $proyecto->nombre . ' (' . $proyecto->cliente->nombre . ')'];
+                            });
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->columnSpanFull(),
+                    Forms\Components\TextInput::make('nombre')
+                        ->label('Nombre del programa')
+                        ->required()
+                        ->columnSpanFull(),
+                    Forms\Components\Select::make('responsable_inicial_id')
+                        ->label('Responsable')
+                        ->options(function () {
+                            return User::all()->pluck('name', 'id');
+                        })
+                        ->default(function () {
+                            // Buscar el primer usuario con rol "Ingenieria"
+                            $ingenieriaUser = User::role('Ingenieria')->first();
+                            return $ingenieriaUser?->id;
+                        })
+                        ->searchable()
+                        ->required()
+                        ->helperText('Por defecto se asigna a Ingeniería')
+                        ->columnSpanFull(),
+                    Forms\Components\Textarea::make('descripcion')
+                        ->label('Descripción')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                    Forms\Components\Section::make('⚙️ Configuración de Fases')
+                        ->description('Selecciona las fases que aplicarán para este programa. Si no seleccionas ninguna, se usarán todas las fases por defecto.')
+                        ->schema([
+                            Forms\Components\CheckboxList::make('fases_configuradas')
+                                ->label('Fases que aplican')
+                                ->options(fn () => Fase::orderBy('orden')->pluck('nombre', 'id'))
+                                ->default(fn () => Fase::orderBy('orden')->pluck('id')->toArray())
+                                ->columns(3)
+                                ->gridDirection('row')
+                                ->bulkToggleable()
+                                ->helperText('Marca las fases que aplicarán para este programa. El orden se respeta según la configuración general de fases.')
+                                ->columnSpanFull(),
+                        ])
+                        ->collapsible()
+                        ->collapsed(false),
+                    Forms\Components\Textarea::make('notas')
+                        ->label('Notas')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                    Forms\Components\Toggle::make('activo')
+                        ->label('Activo')
+                        ->default(true)
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data): void {
+                    $programa = Programa::create([
+                        'proyecto_id' => $data['proyecto_id'],
+                        'nombre' => $data['nombre'],
+                        'descripcion' => $data['descripcion'] ?? null,
+                        'responsable_inicial_id' => $data['responsable_inicial_id'],
+                        'notas' => $data['notas'] ?? null,
+                        'activo' => $data['activo'] ?? true,
+                        'fases_configuradas' => $data['fases_configuradas'] ?? null,
+                    ]);
+
+                    Notification::make()
+                        ->title('Programa creado exitosamente')
+                        ->success()
+                        ->send();
+                }),
+        ];
+    }
+
     public function getTabs(): array
     {
         $baseQuery = AvanceFase::query();
 
-        // Filtrar por usuario si no es administrador
+        // Filtrar por área si no es administrador
         if (!Auth::user()->hasRole('Administrador')) {
-            $baseQuery->where('responsable_id', Auth::id());
+            $baseQuery->where('area_id', Auth::user()->area_id);
         }
 
         return [
@@ -120,12 +216,12 @@ class MisFases extends Page implements HasTable, HasForms
 
     public function table(Table $table): Table
     {
-        $query = AvanceFase::query()->with(['programa.proyecto.cliente', 'fase']);
+        $query = AvanceFase::query()->with(['programa.proyecto.cliente', 'fase', 'area']);
 
         // Solo el Administrador puede ver todos los procesos
-        // Los demás usuarios solo ven sus propias tareas
+        // Los demás usuarios solo ven las de su área
         if (!Auth::user()->hasRole('Administrador')) {
-            $query->where('responsable_id', Auth::id());
+            $query->where('area_id', Auth::user()->area_id);
         }
 
         // Aplicar filtro del tab activo
@@ -165,34 +261,50 @@ class MisFases extends Page implements HasTable, HasForms
                     ->color('info')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('area.nombre')
+                    ->label('Área')
+                    ->badge()
+                    ->color('info')
+                    ->searchable()
+                    ->sortable()
+                    ->visible(fn () => Auth::user()->hasRole('Administrador')),
+
                 Tables\Columns\TextColumn::make('responsable.name')
                     ->label('Responsable')
                     ->badge()
                     ->color('success')
                     ->searchable()
                     ->sortable()
+                    ->placeholder('Sin asignar')
                     ->visible(fn () => Auth::user()->hasRole('Administrador')),
 
-                Tables\Columns\BadgeColumn::make('estado')
+                Tables\Columns\TextColumn::make('estado')
                     ->label('Estado')
+                    ->badge()
                     ->formatStateUsing(fn (AvanceFase $record): string => match ($record->estado) {
                         'pending' => $record->fecha_liberacion ? 'Liberada' : 'Pendiente',
                         'progress' => 'En Progreso',
                         'done' => 'Finalizado',
                         default => $record->estado,
                     })
-                    ->colors([
-                        'secondary' => fn (AvanceFase $record) => $record->estado === 'pending' && !$record->fecha_liberacion,
-                        'info' => fn (AvanceFase $record) => $record->estado === 'pending' && $record->fecha_liberacion,
-                        'warning' => 'progress',
-                        'success' => 'done',
-                    ])
+                    ->color(fn (AvanceFase $record): string => match (true) {
+                        $record->estado === 'pending' && !$record->fecha_liberacion => 'gray',
+                        $record->estado === 'pending' && $record->fecha_liberacion => 'info',
+                        $record->estado === 'progress' => 'warning',
+                        $record->estado === 'done' => 'success',
+                        default => 'gray',
+                    })
                     ->icon(fn (AvanceFase $record): string => match ($record->estado) {
                         'pending' => $record->fecha_liberacion ? 'heroicon-o-bell-alert' : 'heroicon-o-clock',
                         'progress' => 'heroicon-o-arrow-path',
                         'done' => 'heroicon-o-check-circle',
                         default => 'heroicon-o-question-mark-circle',
                     })
+                    ->extraAttributes(fn (AvanceFase $record): array =>
+                        $record->fecha_liberacion && $record->estado === 'pending'
+                            ? ['title' => '📅 Liberada: ' . $record->fecha_liberacion->format('d/m/Y H:i')]
+                            : []
+                    )
                     ->description(fn (AvanceFase $record): ?string =>
                         $record->fecha_liberacion && $record->estado === 'pending'
                             ? 'Notificada: ' . $record->fecha_liberacion->format('d/m/Y H:i')
@@ -426,6 +538,7 @@ class MisFases extends Page implements HasTable, HasForms
                             'estado' => 'progress',
                             'fecha_inicio' => now(),
                             'notas' => $data['notas'] ?? $record->notas,
+                            'responsable_id' => Auth::id(), // Asignar el usuario que inicia
                         ]);
                     }),
 
@@ -450,6 +563,7 @@ class MisFases extends Page implements HasTable, HasForms
                             'estado' => 'done',
                             'fecha_fin' => now(),
                             'notas_finalizacion' => $data['notas_finalizacion'] ?? null,
+                            'responsable_id' => Auth::id(), // Asignar el usuario que finaliza
                         ]);
                     }),
 
@@ -506,6 +620,7 @@ class MisFases extends Page implements HasTable, HasForms
                         }
                         return 'Liberar siguiente fase';
                     })
+                    ->disabled(fn (AvanceFase $record) => $record->fecha_liberacion !== null)
                     ->visible(function (AvanceFase $record) {
                         // Solo visible si está finalizado
                         if ($record->estado !== 'done') {
@@ -529,12 +644,32 @@ class MisFases extends Page implements HasTable, HasForms
                         // SIEMPRE mostrar el botón si hay siguiente fase
                         return true;
                     })
-                    ->disabled(fn (AvanceFase $record) => $record->fecha_liberacion !== null)
-                    ->requiresConfirmation()
+                    ->requiresConfirmation(fn (AvanceFase $record) => $record->fecha_liberacion === null)
                     ->modalHeading('Liberar Siguiente Fase')
-                    ->modalDescription('¿Deseas liberar la siguiente fase del proceso? Los usuarios responsables serán notificados.')
+                    ->modalDescription(function (AvanceFase $record) {
+                        // Obtener las fases configuradas para este programa
+                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
+                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
+                            ->orderBy('orden', 'asc')
+                            ->get();
+
+                        // Buscar la siguiente fase DENTRO de las configuradas
+                        $siguienteFase = $fasesConfiguradas->where('orden', '>', $record->fase->orden)->first();
+
+                        if ($siguienteFase) {
+                            $areaInfo = $siguienteFase->area ? " (Área: {$siguienteFase->area->nombre})" : '';
+                            return "📋 Fase actual: {$record->fase->nombre}\n\n⏭️ Será liberada a: {$siguienteFase->nombre}{$areaInfo}\n\n¿Deseas continuar? Los usuarios responsables serán notificados.";
+                        }
+
+                        return '¿Deseas liberar la siguiente fase del proceso?';
+                    })
                     ->modalSubmitActionLabel('Sí, liberar fase')
                     ->action(function (AvanceFase $record) {
+                        // Si ya está liberada, no hacer nada
+                        if ($record->fecha_liberacion) {
+                            return;
+                        }
+
                         $faseActual = $record->fase;
 
                         // Obtener las fases configuradas para este programa
@@ -567,23 +702,49 @@ class MisFases extends Page implements HasTable, HasForms
                             ->first();
 
                         if (!$avanceExistente) {
-                            // Buscar primer usuario con el rol de la siguiente fase
-                            $rolNombre = $siguienteFase->nombre;
-                            $primerUsuarioRol = User::role($rolNombre)->first();
+                            try {
+                                // Determinar el area_id para la siguiente fase usando el método inteligente
+                                $areaId = $siguienteFase->determinarArea();
 
-                            // Crear el siguiente avance automáticamente
-                            $nuevoAvance = AvanceFase::create([
-                                'programa_id' => $record->programa_id,
-                                'fase_id' => $siguienteFase->id,
-                                'responsable_id' => $primerUsuarioRol?->id,
-                                'estado' => 'pending',
-                                'activo' => true,
-                            ]);
+                                if (!$areaId) {
+                                    \Log::warning("No se pudo determinar área para fase: {$siguienteFase->nombre}");
+                                }
+
+                                // Crear el siguiente avance automáticamente asignándolo al área
+                                $nuevoAvance = AvanceFase::create([
+                                    'programa_id' => $record->programa_id,
+                                    'fase_id' => $siguienteFase->id,
+                                    'area_id' => $areaId,
+                                    'responsable_id' => null, // Sin responsable específico, visible para toda el área
+                                    'estado' => 'pending',
+                                    'activo' => true,
+                                ]);
+
+                                \Log::info("Avance creado exitosamente para programa {$record->programa_id}, fase {$siguienteFase->nombre}, area_id: {$areaId}");
+                            } catch (\Exception $e) {
+                                \Log::error("Error al crear avance de fase: " . $e->getMessage());
+
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Error al crear siguiente fase')
+                                    ->body("Ocurrió un error al crear el avance para la fase {$siguienteFase->nombre}. Error: " . $e->getMessage())
+                                    ->send();
+
+                                return;
+                            }
                         }
 
-                        // Buscar usuarios con el rol de la siguiente fase para notificar
-                        $usuariosNotificar = User::role($siguienteFase->nombre)->get();
+                        // Buscar usuarios del área de la siguiente fase para notificar
+                        $usuariosNotificar = collect();
 
+                        // Usar el método determinarArea() para obtener el área correcta
+                        $areaIdNotificar = $siguienteFase->determinarArea();
+
+                        if ($areaIdNotificar) {
+                            $usuariosNotificar = User::where('area_id', $areaIdNotificar)->get();
+                        }
+
+                        // Si no hay usuarios en el área, notificar a administradores
                         if ($usuariosNotificar->isEmpty()) {
                             $usuariosNotificar = User::role('Administrador')->get();
                         }
@@ -597,10 +758,12 @@ class MisFases extends Page implements HasTable, HasForms
                             ));
                         }
 
+                        $areaNotificada = $siguienteFase->area ? $siguienteFase->area->nombre : 'sin área asignada';
+
                         Notification::make()
                             ->success()
                             ->title('Fase liberada exitosamente')
-                            ->body("Se ha notificado a los usuarios de la fase: {$siguienteFase->nombre}. El avance ha sido creado automáticamente.")
+                            ->body("Se ha notificado a los usuarios del área {$areaNotificada} para la fase: {$siguienteFase->nombre}. El avance ha sido creado automáticamente.")
                             ->send();
                     }),
 

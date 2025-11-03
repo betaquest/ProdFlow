@@ -25,7 +25,17 @@ trait HasDynamicPermissions
         // Verificar si el usuario tiene el permiso específico
         $permission = "{$this->resource}.{$action}";
 
-        return $user->hasPermissionTo($permission);
+        // Primero verificar permisos directos del usuario
+        if ($user->hasPermissionTo($permission)) {
+            return true;
+        }
+
+        // Si el usuario tiene área, verificar permisos del área
+        if ($user->area_id && $user->area) {
+            return $user->area->hasPermission($permission);
+        }
+
+        return false;
     }
 
     /**
