@@ -239,7 +239,9 @@ class MisFases extends Page implements HasTable, HasForms
                 ELSE 5
             END
         ")
-        ->orderByRaw('GREATEST(created_at, updated_at) DESC');
+        // Prioridad: nuevos primero, luego por última actualización
+        ->orderBy('created_at', 'desc')
+        ->orderBy('updated_at', 'desc');
 
         return $table
             ->query($query)
@@ -395,9 +397,37 @@ class MisFases extends Page implements HasTable, HasForms
 
                 Tables\Columns\TextColumn::make('fecha_inicio')
                     ->label('Inicio')
-                    ->dateTime('d/m/Y H:i')
+                    ->html()
+                    ->formatStateUsing(function (AvanceFase $record): ?string {
+                        if (!$record->fecha_inicio) {
+                            return null;
+                        }
+
+                        $fecha = $record->fecha_inicio->format('d/m/Y H:i');
+
+                        // Agregar icono si tiene notas
+                        return $record->notas ? $fecha . ' <span style="color: #9ca3af; opacity: 0.7;">📝</span>' : $fecha;
+                    })
                     ->sortable()
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->tooltip(function (AvanceFase $record): ?string {
+                        if (!$record->fecha_inicio) {
+                            return null;
+                        }
+
+                        $lines = [];
+                        $lines[] = '📅 Iniciada: ' . $record->fecha_inicio->format('d/m/Y H:i');
+
+                        // Mostrar las notas si existen
+                        if ($record->notas) {
+                            $lines[] = '';
+                            $lines[] = '📝 Notas:';
+                            $lines[] = '─────────────────────';
+                            $lines[] = $record->notas;
+                        }
+
+                        return implode("\n", $lines);
+                    }),
 
                 Tables\Columns\TextColumn::make('fecha_fin')
                     ->label('Finalización')
@@ -437,7 +467,8 @@ class MisFases extends Page implements HasTable, HasForms
                     ->label('Notas')
                     ->limit(40)
                     ->tooltip(fn (AvanceFase $record): ?string => $record->notas)
-                    ->placeholder('Sin notas'),
+                    ->placeholder('Sin notas')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('estado')
