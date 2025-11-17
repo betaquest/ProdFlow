@@ -37,13 +37,14 @@ class DashboardView extends Component
 
         // Cargar fases según configuración
         if (!$this->dashboard->todas_fases && $this->dashboard->fases_ids) {
-            // Solo las fases seleccionadas
+            // Solo las fases seleccionadas (y activas)
             $this->fases = Fase::whereIn('id', $this->dashboard->fases_ids)
+                ->where('activo', true)
                 ->orderBy('orden', 'asc')
                 ->get();
         } else {
-            // Todas las fases
-            $this->fases = Fase::orderBy('orden', 'asc')->get();
+            // Todas las fases activas
+            $this->fases = Fase::where('activo', true)->orderBy('orden', 'asc')->get();
         }
 
         $this->loadData();

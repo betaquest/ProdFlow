@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class Fase extends Model
 {
     protected $fillable = [
-        'nombre', 'alias', 'orden', 'area_id', 'requiere_aprobacion', 'estado',
+        'nombre', 'alias', 'orden', 'area_id', 'requiere_aprobacion', 'estado', 'activo',
     ];
 
     protected $casts = [
         'requiere_aprobacion' => 'boolean',
+        'activo' => 'boolean',
     ];
 
     public function usuarios()
@@ -30,21 +31,23 @@ class Fase extends Model
     }
 
     /**
-     * Obtener la siguiente fase en orden
+     * Obtener la siguiente fase en orden (solo fases activas)
      */
     public function siguienteFase()
     {
         return self::where('orden', '>', $this->orden)
+            ->where('activo', true)
             ->orderBy('orden', 'asc')
             ->first();
     }
 
     /**
-     * Obtener la fase anterior en orden
+     * Obtener la fase anterior en orden (solo fases activas)
      */
     public function faseAnterior()
     {
         return self::where('orden', '<', $this->orden)
+            ->where('activo', true)
             ->orderBy('orden', 'desc')
             ->first();
     }

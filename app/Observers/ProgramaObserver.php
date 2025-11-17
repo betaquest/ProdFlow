@@ -15,8 +15,8 @@ class ProgramaObserver
      */
     public function created(Programa $programa): void
     {
-        // Obtener la primera fase (orden = 1 o la menor)
-        $primeraFase = Fase::orderBy('orden', 'asc')->first();
+        // Obtener la primera fase activa (orden = 1 o la menor)
+        $primeraFase = Fase::where('activo', true)->orderBy('orden', 'asc')->first();
 
         if ($primeraFase) {
             // Determinar el responsable: usar el seleccionado o el primer usuario de Ingeniería

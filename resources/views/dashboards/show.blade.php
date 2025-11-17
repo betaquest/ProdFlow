@@ -17,7 +17,7 @@
                     <th class="px-3 py-2 text-left">Cliente</th>
                     <th class="px-3 py-2 text-left">Proyecto</th>
                     <th class="px-3 py-2 text-left">Programa</th>
-                    @foreach(\App\Models\Fase::all() as $fase)
+                    @foreach(\App\Models\Fase::where('activo', true)->orderBy('orden')->get() as $fase)
                         <th class="px-3 py-2 text-center">{{ $fase->nombre }}</th>
                     @endforeach
                 </tr>
@@ -28,7 +28,7 @@
                         <td class="px-3 py-2">{{ $programa->proyecto->cliente->nombre }}</td>
                         <td class="px-3 py-2">{{ $programa->proyecto->nombre }}</td>
                         <td class="px-3 py-2">{{ $programa->nombre }}</td>
-                        @foreach(\App\Models\Fase::all() as $fase)
+                        @foreach(\App\Models\Fase::where('activo', true)->orderBy('orden')->get() as $fase)
                             @php
                                 $avance = $programa->avances->firstWhere('fase_id', $fase->id);
                                 $icon = match($avance?->estado) {
@@ -66,7 +66,7 @@
                     <th class="px-3 py-2 text-left">Cliente</th>
                     <th class="px-3 py-2 text-left">Proyecto</th>
                     <th class="px-3 py-2 text-left">Programa</th>
-                    @foreach(\App\Models\Fase::all() as $fase)
+                    @foreach(\App\Models\Fase::where('activo', true)->orderBy('orden')->get() as $fase)
                         <th class="px-3 py-2 text-center">{{ $fase->nombre }}</th>
                     @endforeach
                 </tr>
@@ -77,7 +77,7 @@
                         <td class="px-3 py-2">{{ $programa->proyecto->cliente->nombre }}</td>
                         <td class="px-3 py-2">{{ $programa->proyecto->nombre }}</td>
                         <td class="px-3 py-2">{{ $programa->nombre }}</td>
-                        @foreach(\App\Models\Fase::all() as $fase)
+                        @foreach(\App\Models\Fase::where('activo', true)->orderBy('orden')->get() as $fase)
                             @php
                                 $avance = $programa->avances->firstWhere('fase_id', $fase->id);
                                 $icon = match($avance?->estado) {

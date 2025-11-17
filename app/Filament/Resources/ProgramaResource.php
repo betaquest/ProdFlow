@@ -104,8 +104,8 @@ class ProgramaResource extends Resource
                     ->schema([
                         Forms\Components\CheckboxList::make('fases_configuradas')
                             ->label('Fases que aplican')
-                            ->options(fn () => Fase::orderBy('orden')->pluck('nombre', 'id'))
-                            ->default(fn () => Fase::orderBy('orden')->pluck('id')->toArray())
+                            ->options(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
+                            ->default(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('id')->toArray())
                             ->columns(3)
                             ->gridDirection('row')
                             ->bulkToggleable()

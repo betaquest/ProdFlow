@@ -58,6 +58,10 @@ class FaseResource extends Resource
                     ->label('Requiere Aprobación')
                     ->default(true)
                     ->helperText('Si está activo, la fase anterior debe completarse antes de iniciar esta'),
+                Forms\Components\Toggle::make('activo')
+                    ->label('Activo')
+                    ->default(true)
+                    ->helperText('Desactiva esta fase para excluirla del flujo de producción'),
             ]);
     }
 
@@ -94,6 +98,11 @@ class FaseResource extends Resource
                     ->label('Requiere Aprobación')
                     ->boolean()
                     ->sortable(),
+                Tables\Columns\IconColumn::make('activo')
+                    ->label('Activo')
+                    ->boolean()
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->filters([
                 //

@@ -143,7 +143,7 @@ class DashboardResource extends Resource
 
                                 Forms\Components\CheckboxList::make('fases_ids')
                                     ->label('Selecciona Fases')
-                                    ->options(fn () => \App\Models\Fase::orderBy('orden')->pluck('nombre', 'id'))
+                                    ->options(fn () => \App\Models\Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
                                     ->columns(4)
                                     ->gridDirection('row')
                                     ->bulkToggleable()

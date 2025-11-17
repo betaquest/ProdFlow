@@ -79,7 +79,7 @@ class ReporteGeneral extends Page implements HasForms
 
                         Select::make('fase_id')
                             ->label('Fase')
-                            ->options(Fase::pluck('nombre', 'id'))
+                            ->options(Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
                             ->searchable(),
 
                         DatePicker::make('fecha_inicio')
