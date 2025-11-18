@@ -61,6 +61,11 @@ class DashboardView extends Component
             });
         }
 
+        // Filtrar por perfiles si no se muestran todos
+        if (!$this->dashboard->todos_perfiles && $this->dashboard->perfiles_ids) {
+            $query->whereIn('perfil_programa_id', $this->dashboard->perfiles_ids);
+        }
+
         // Aplicar criterios adicionales (JSON)
         if ($this->dashboard->criterios) {
             foreach ($this->dashboard->criterios as $campo => $valor) {

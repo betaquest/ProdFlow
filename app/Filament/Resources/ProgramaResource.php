@@ -99,21 +99,45 @@ class ProgramaResource extends Resource
                     ->rows(3)
                     ->columnSpanFull(),
 
-                Forms\Components\Section::make('⚙️ Configuración de Fases')
-                    ->description('Selecciona las fases que aplicarán para este programa. Si no seleccionas ninguna, se usarán todas las fases por defecto.')
+                Forms\Components\Section::make('🎯 Perfil de Programa')
+                    ->description('Selecciona un perfil predefinido que determinará las fases y áreas del programa.')
                     ->schema([
-                        Forms\Components\CheckboxList::make('fases_configuradas')
-                            ->label('Fases que aplican')
-                            ->options(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
-                            ->default(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('id')->toArray())
-                            ->columns(3)
-                            ->gridDirection('row')
-                            ->bulkToggleable()
-                            ->helperText('Marca las fases que aplicarán para este programa. El orden se respeta según la configuración general de fases.')
+                        Forms\Components\Select::make('perfil_programa_id')
+                            ->label('Perfil')
+                            ->options(\App\Models\PerfilPrograma::where('activo', true)->pluck('nombre', 'id'))
+                            ->default(function () {
+                                // Obtener el perfil predeterminado (In-House)
+                                return \App\Models\PerfilPrograma::predeterminado()->first()?->id;
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->helperText('El perfil define las fases, áreas responsables y el orden del flujo de trabajo.')
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                // Si selecciona un perfil, limpiar fases_configuradas
+                                if ($state) {
+                                    $set('fases_configuradas', null);
+                                }
+                            })
                             ->columnSpanFull(),
                     ])
                     ->collapsible()
                     ->collapsed(false),
+
+                Forms\Components\Section::make('⚙️ Configuración Manual de Fases')
+                    ->description('Alternativamente, puedes configurar las fases manualmente (ignora el perfil seleccionado).')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('fases_configuradas')
+                            ->label('Fases que aplican')
+                            ->options(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
+                            ->columns(3)
+                            ->gridDirection('row')
+                            ->bulkToggleable()
+                            ->helperText('⚠️ Si seleccionas fases manualmente, se ignorará el perfil seleccionado arriba.')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(true),
 
                 Forms\Components\Textarea::make('notas')
                     ->label('Notas')
@@ -155,6 +179,14 @@ class ProgramaResource extends Resource
                     ->searchable()
                     ->limit(25)
                     ->tooltip(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')'),
+                Tables\Columns\TextColumn::make('perfilPrograma.nombre')
+                    ->label('Perfil')
+                    ->badge()
+                    ->color('warning')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('Sin perfil')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('fase_actual')
                     ->label('Fase Actual')
                     ->badge()

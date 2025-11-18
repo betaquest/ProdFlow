@@ -150,6 +150,30 @@ class DashboardResource extends Resource
                                     ->hidden(fn ($get) => $get('todas_fases'))
                                     ->helperText('Marca las fases que quieres mostrar en el dashboard'),
                             ]),
+
+                        Forms\Components\Placeholder::make('divider2')
+                            ->content('───────────────────────────────────────')
+                            ->columnSpanFull(),
+
+                        // FILTRO DE PERFILES
+                        Forms\Components\Grid::make(1)
+                            ->schema([
+                                Forms\Components\Toggle::make('todos_perfiles')
+                                    ->label('🎯 Mostrar Todos los Perfiles')
+                                    ->default(true)
+                                    ->inline(false)
+                                    ->live()
+                                    ->helperText('Activado = Todos los perfiles | Desactivado = Selecciona específicos'),
+
+                                Forms\Components\CheckboxList::make('perfiles_ids')
+                                    ->label('Selecciona Perfiles')
+                                    ->options(fn () => \App\Models\PerfilPrograma::where('activo', true)->orderBy('nombre')->pluck('nombre', 'id'))
+                                    ->columns(2)
+                                    ->gridDirection('row')
+                                    ->bulkToggleable()
+                                    ->hidden(fn ($get) => $get('todos_perfiles'))
+                                    ->helperText('Marca los perfiles que quieres incluir (Walk-In, In-House, etc.)'),
+                            ]),
                     ])
                     ->columns(1)
                     ->collapsible(),

@@ -52,6 +52,10 @@ class ProyectoResource extends Resource
                 Forms\Components\Toggle::make('activo')
                     ->label('Activo')
                     ->default(true),
+                Forms\Components\Toggle::make('finalizado')
+                    ->label('Finalizado')
+                    ->default(false)
+                    ->helperText('Marca como finalizado para ocultarlo al crear nuevos programas'),
             ]);
     }
 
@@ -82,6 +86,11 @@ class ProyectoResource extends Resource
                     ->label('Activo')
                     ->boolean()
                     ->sortable(),
+                Tables\Columns\IconColumn::make('finalizado')
+                    ->label('Finalizado')
+                    ->boolean()
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('descripcion')
                     ->limit(30)
                     ->toggleable(),
@@ -91,7 +100,10 @@ class ProyectoResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('activo')
-                    ->label('Estado')
+                    ->label('Activo')
+                    ->boolean(),
+                Tables\Filters\TernaryFilter::make('finalizado')
+                    ->label('Finalizado')
                     ->boolean(),
             ])
             ->actions([

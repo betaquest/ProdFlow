@@ -104,11 +104,26 @@ class MisFases extends Page implements HasTable, HasForms
                 })
                 ->slideOver()
                 ->form([
+                    Forms\Components\Toggle::make('mostrar_finalizados')
+                        ->label('Mostrar Proyectos Finalizados')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Activar para ver proyectos marcados como finalizados')
+                        ->columnSpanFull(),
+
                     Forms\Components\Select::make('proyecto_id')
                         ->label('Proyecto')
-                        ->options(function () {
-                            return Proyecto::with('cliente')->get()->mapWithKeys(function ($proyecto) {
-                                return [$proyecto->id => $proyecto->nombre . ' (' . $proyecto->cliente->nombre . ')'];
+                        ->options(function ($get) {
+                            $query = Proyecto::with('cliente');
+
+                            // Si no se marca mostrar_finalizados, filtrar solo no finalizados
+                            if (!$get('mostrar_finalizados')) {
+                                $query->where('finalizado', false);
+                            }
+
+                            return $query->get()->mapWithKeys(function ($proyecto) {
+                                $finalizadoTag = $proyecto->finalizado ? ' [FINALIZADO]' : '';
+                                return [$proyecto->id => $proyecto->nombre . ' (' . $proyecto->cliente->nombre . ')' . $finalizadoTag];
                             });
                         })
                         ->searchable()
@@ -119,39 +134,42 @@ class MisFases extends Page implements HasTable, HasForms
                         ->label('Nombre del programa')
                         ->required()
                         ->columnSpanFull(),
-                    Forms\Components\Select::make('responsable_inicial_id')
-                        ->label('Responsable')
-                        ->options(function () {
-                            return User::all()->pluck('name', 'id');
-                        })
-                        ->default(function () {
-                            // Buscar el primer usuario con rol "Ingenieria"
-                            $ingenieriaUser = User::role('Ingenieria')->first();
-                            return $ingenieriaUser?->id;
-                        })
-                        ->searchable()
-                        ->required()
-                        ->helperText('Por defecto se asigna a Ingeniería')
-                        ->columnSpanFull(),
                     Forms\Components\Textarea::make('descripcion')
                         ->label('Descripción')
                         ->rows(3)
                         ->columnSpanFull(),
-                    Forms\Components\Section::make('⚙️ Configuración de Fases')
-                        ->description('Selecciona las fases que aplicarán para este programa. Si no seleccionas ninguna, se usarán todas las fases por defecto.')
+                    Forms\Components\Section::make('🎯 Perfil de Programa')
+                        ->description('Selecciona un perfil predefinido que determinará las fases y áreas del programa.')
                         ->schema([
-                            Forms\Components\CheckboxList::make('fases_configuradas')
-                                ->label('Fases que aplican')
-                                ->options(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
-                                ->default(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('id')->toArray())
-                                ->columns(3)
-                                ->gridDirection('row')
-                                ->bulkToggleable()
-                                ->helperText('Marca las fases que aplicarán para este programa. El orden se respeta según la configuración general de fases.')
+                            Forms\Components\Select::make('perfil_programa_id')
+                                ->label('⚠️ PERFIL DEL PROGRAMA')
+                                ->options(function () {
+                                    return \App\Models\PerfilPrograma::where('activo', true)
+                                        ->orderBy('nombre')
+                                        ->get()
+                                        ->mapWithKeys(fn($p) => [$p->id => $p->nombre . ($p->predeterminado ? ' (Predeterminado)' : '')]);
+                                })
+                                ->required()
+                                ->native(false)
+                                ->helperText('⚠️ IMPORTANTE: Walk-In = 3 fases (sin Ingeniería) | In-House = 9 fases (completo)')
                                 ->columnSpanFull(),
                         ])
                         ->collapsible()
                         ->collapsed(false),
+                    Forms\Components\Section::make('⚙️ Configuración Manual de Fases')
+                        ->description('Alternativamente, puedes configurar las fases manualmente (ignora el perfil seleccionado).')
+                        ->schema([
+                            Forms\Components\CheckboxList::make('fases_configuradas')
+                                ->label('Fases que aplican')
+                                ->options(fn () => Fase::where('activo', true)->orderBy('orden')->pluck('nombre', 'id'))
+                                ->columns(3)
+                                ->gridDirection('row')
+                                ->bulkToggleable()
+                                ->helperText('⚠️ Si seleccionas fases manualmente, se ignorará el perfil seleccionado arriba.')
+                                ->columnSpanFull(),
+                        ])
+                        ->collapsible()
+                        ->collapsed(true),
                     Forms\Components\Textarea::make('notas')
                         ->label('Notas')
                         ->rows(3)
@@ -164,9 +182,10 @@ class MisFases extends Page implements HasTable, HasForms
                 ->action(function (array $data): void {
                     $programa = Programa::create([
                         'proyecto_id' => $data['proyecto_id'],
+                        'perfil_programa_id' => $data['perfil_programa_id'] ?? null,
                         'nombre' => $data['nombre'],
                         'descripcion' => $data['descripcion'] ?? null,
-                        'responsable_inicial_id' => $data['responsable_inicial_id'],
+                        'responsable_inicial_id' => null, // Se asigna automáticamente en el Observer
                         'notas' => $data['notas'] ?? null,
                         'activo' => $data['activo'] ?? true,
                         'fases_configuradas' => $data['fases_configuradas'] ?? null,
@@ -229,19 +248,8 @@ class MisFases extends Page implements HasTable, HasForms
             $query->where('estado', $this->activeTab);
         }
 
-        // Ordenamiento multinivel inteligente
-        $query->orderByRaw("
-            CASE
-                WHEN estado = 'progress' THEN 1
-                WHEN estado = 'pending' AND fecha_liberacion IS NOT NULL THEN 2
-                WHEN estado = 'pending' AND fecha_liberacion IS NULL THEN 3
-                WHEN estado = 'done' THEN 4
-                ELSE 5
-            END
-        ")
-        // Prioridad: nuevos primero, luego por última actualización
-        ->orderBy('created_at', 'desc')
-        ->orderBy('updated_at', 'desc');
+        // Ordenamiento: nuevos primero (por fecha de creación)
+        $query->orderBy('created_at', 'desc');
 
         return $table
             ->query($query)
@@ -264,6 +272,14 @@ class MisFases extends Page implements HasTable, HasForms
                     ->searchable()
                     ->sortable()
                     ->description(fn (AvanceFase $record): string => $record->programa->descripcion ?? ''),
+
+                Tables\Columns\TextColumn::make('programa.perfilPrograma.nombre')
+                    ->label('Perfil')
+                    ->badge()
+                    ->color('warning')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('fase.nombre')
                     ->label('Fase')
@@ -669,17 +685,11 @@ class MisFases extends Page implements HasTable, HasForms
                             return false;
                         }
 
-                        // Obtener las fases configuradas para este programa
-                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
-                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
-                            ->orderBy('orden', 'asc')
-                            ->get();
-
-                        // Buscar la siguiente fase DENTRO de las configuradas
-                        $siguienteFase = $fasesConfiguradas->where('orden', '>', $record->fase->orden)->first();
+                        // Usar el método del programa para obtener la siguiente fase según el perfil
+                        $siguienteFaseData = $record->programa->getSiguienteFase($record->fase_id);
 
                         // Ocultar si no hay siguiente fase
-                        if (!$siguienteFase) {
+                        if (!$siguienteFaseData) {
                             return false;
                         }
 
@@ -689,17 +699,14 @@ class MisFases extends Page implements HasTable, HasForms
                     ->requiresConfirmation(fn (AvanceFase $record) => $record->fecha_liberacion === null)
                     ->modalHeading('Liberar Siguiente Fase')
                     ->modalDescription(function (AvanceFase $record) {
-                        // Obtener las fases configuradas para este programa
-                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
-                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
-                            ->orderBy('orden', 'asc')
-                            ->get();
+                        // Usar el método del programa para obtener la siguiente fase según el perfil
+                        $siguienteFaseData = $record->programa->getSiguienteFase($record->fase_id);
 
-                        // Buscar la siguiente fase DENTRO de las configuradas
-                        $siguienteFase = $fasesConfiguradas->where('orden', '>', $record->fase->orden)->first();
-
-                        if ($siguienteFase) {
-                            $areaInfo = $siguienteFase->area ? " (Área: {$siguienteFase->area->nombre})" : '';
+                        if ($siguienteFaseData && isset($siguienteFaseData['fase'])) {
+                            $siguienteFase = $siguienteFaseData['fase'];
+                            $areaId = $siguienteFaseData['area_id'];
+                            $area = \App\Models\Area::find($areaId);
+                            $areaInfo = $area ? " (Área: {$area->nombre})" : '';
                             return "📋 Fase actual: {$record->fase->nombre}\n\n⏭️ Será liberada a: {$siguienteFase->nombre}{$areaInfo}\n\n¿Deseas continuar? Los usuarios responsables serán notificados.";
                         }
 
@@ -714,16 +721,10 @@ class MisFases extends Page implements HasTable, HasForms
 
                         $faseActual = $record->fase;
 
-                        // Obtener las fases configuradas para este programa
-                        $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
-                        $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
-                            ->orderBy('orden', 'asc')
-                            ->get();
+                        // Usar el método del programa para obtener la siguiente fase según el perfil
+                        $siguienteFaseData = $record->programa->getSiguienteFase($record->fase_id);
 
-                        // Buscar la siguiente fase DENTRO de las configuradas
-                        $siguienteFase = $fasesConfiguradas->where('orden', '>', $faseActual->orden)->first();
-
-                        if (!$siguienteFase) {
+                        if (!$siguienteFaseData || !isset($siguienteFaseData['fase'])) {
                             Notification::make()
                                 ->warning()
                                 ->title('No hay siguiente fase')
@@ -731,6 +732,9 @@ class MisFases extends Page implements HasTable, HasForms
                                 ->send();
                             return;
                         }
+
+                        $siguienteFase = $siguienteFaseData['fase'];
+                        $areaIdSiguiente = $siguienteFaseData['area_id'];
 
                         // ✨ Marcar fecha de liberación en la fase ACTUAL
                         $record->update([
@@ -745,24 +749,21 @@ class MisFases extends Page implements HasTable, HasForms
 
                         if (!$avanceExistente) {
                             try {
-                                // Determinar el area_id para la siguiente fase usando el método inteligente
-                                $areaId = $siguienteFase->determinarArea();
-
-                                if (!$areaId) {
+                                if (!$areaIdSiguiente) {
                                     \Log::warning("No se pudo determinar área para fase: {$siguienteFase->nombre}");
                                 }
 
-                                // Crear el siguiente avance automáticamente asignándolo al área
+                                // Crear el siguiente avance automáticamente asignándolo al área del perfil
                                 $nuevoAvance = AvanceFase::create([
                                     'programa_id' => $record->programa_id,
                                     'fase_id' => $siguienteFase->id,
-                                    'area_id' => $areaId,
+                                    'area_id' => $areaIdSiguiente,
                                     'responsable_id' => null, // Sin responsable específico, visible para toda el área
                                     'estado' => 'pending',
                                     'activo' => true,
                                 ]);
 
-                                \Log::info("Avance creado exitosamente para programa {$record->programa_id}, fase {$siguienteFase->nombre}, area_id: {$areaId}");
+                                \Log::info("Avance creado exitosamente para programa {$record->programa_id}, fase {$siguienteFase->nombre}, area_id: {$areaIdSiguiente}");
                             } catch (\Exception $e) {
                                 \Log::error("Error al crear avance de fase: " . $e->getMessage());
 
@@ -779,11 +780,8 @@ class MisFases extends Page implements HasTable, HasForms
                         // Buscar usuarios del área de la siguiente fase para notificar
                         $usuariosNotificar = collect();
 
-                        // Usar el método determinarArea() para obtener el área correcta
-                        $areaIdNotificar = $siguienteFase->determinarArea();
-
-                        if ($areaIdNotificar) {
-                            $usuariosNotificar = User::where('area_id', $areaIdNotificar)->get();
+                        if ($areaIdSiguiente) {
+                            $usuariosNotificar = User::where('area_id', $areaIdSiguiente)->get();
                         }
 
                         // Si no hay usuarios en el área, notificar a administradores
@@ -800,7 +798,8 @@ class MisFases extends Page implements HasTable, HasForms
                             ));
                         }
 
-                        $areaNotificada = $siguienteFase->area ? $siguienteFase->area->nombre : 'sin área asignada';
+                        $area = \App\Models\Area::find($areaIdSiguiente);
+                        $areaNotificada = $area ? $area->nombre : 'sin área asignada';
 
                         Notification::make()
                             ->success()
