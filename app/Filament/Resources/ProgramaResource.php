@@ -367,7 +367,19 @@ class ProgramaResource extends Resource
                             ->leftJoin('avance_fases', 'programas.id', '=', 'avance_fases.programa_id')
                             ->select('programas.*')
                             ->selectRaw('COALESCE(MAX(avance_fases.updated_at), programas.created_at) as ultimo_movimiento')
-                            ->groupBy('programas.id', 'programas.proyecto_id', 'programas.nombre', 'programas.descripcion', 'programas.fases_configuradas', 'programas.responsable_inicial_id', 'programas.notas', 'programas.activo', 'programas.created_at', 'programas.updated_at')
+                            ->groupBy(
+                                'programas.id',
+                                'programas.proyecto_id',
+                                'programas.nombre',
+                                'programas.descripcion',
+                                'programas.fases_configuradas',
+                                'programas.responsable_inicial_id',
+                                'programas.perfil_programa_id',
+                                'programas.notas',
+                                'programas.activo',
+                                'programas.created_at',
+                                'programas.updated_at'
+                            )
                             ->orderBy('ultimo_movimiento', $direction);
                     })
                     ->description(fn ($record) => 'Hace ' . $record->avances->max('updated_at')?->diffForHumans() ?? $record->created_at->diffForHumans())

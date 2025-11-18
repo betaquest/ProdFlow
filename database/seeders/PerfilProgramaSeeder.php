@@ -56,22 +56,17 @@ class PerfilProgramaSeeder extends Seeder
             'predeterminado' => true, // In-House es el predeterminado
         ]);
 
-        // Perfil 2: Walk-In (Tradicional)
-        // Este perfil incluye todas las fases en orden tradicional
+        // Perfil 2: Walk-In (Simplificado)
+        // Este perfil solo incluye 4 fases asignadas al área de Captura
         $walkInConfig = [
             'fases' => []
         ];
 
         $fasesWalkIn = [
-            ['nombre' => 'Ingenieria', 'area_nombre' => 'Ingenieria', 'orden' => 1, 'requiere_aprobacion' => false],
-            ['nombre' => 'Captura', 'area_nombre' => 'Captura', 'orden' => 2, 'requiere_aprobacion' => true],
-            ['nombre' => 'Abastecimiento', 'area_nombre' => 'Abastecimiento', 'orden' => 3, 'requiere_aprobacion' => true],
-            ['nombre' => 'Corte', 'area_nombre' => 'Corte', 'orden' => 4, 'requiere_aprobacion' => true],
-            ['nombre' => 'Enchape', 'area_nombre' => 'Ensamblado', 'orden' => 5, 'requiere_aprobacion' => true],
-            ['nombre' => 'Entrega', 'area_nombre' => 'Armado', 'orden' => 6, 'requiere_aprobacion' => true],
-            ['nombre' => 'Armado', 'area_nombre' => 'Armado', 'orden' => 7, 'requiere_aprobacion' => true],
-            ['nombre' => 'Instalacion', 'area_nombre' => 'Instalacion', 'orden' => 8, 'requiere_aprobacion' => true],
-            ['nombre' => 'Completado', 'area_nombre' => 'Instalacion', 'orden' => 9, 'requiere_aprobacion' => true],
+            ['nombre' => 'Captura', 'area_nombre' => 'Captura', 'orden' => 1, 'requiere_aprobacion' => false],
+            ['nombre' => 'Enchape', 'area_nombre' => 'Captura', 'orden' => 2, 'requiere_aprobacion' => true],
+            ['nombre' => 'Corte', 'area_nombre' => 'Captura', 'orden' => 3, 'requiere_aprobacion' => true],
+            ['nombre' => 'Entrega', 'area_nombre' => 'Captura', 'orden' => 4, 'requiere_aprobacion' => true],
         ];
 
         foreach ($fasesWalkIn as $faseData) {
@@ -90,7 +85,7 @@ class PerfilProgramaSeeder extends Seeder
 
         PerfilPrograma::create([
             'nombre' => 'Walk-In',
-            'descripcion' => 'Perfil tradicional completo. Inicia en Ingeniería e incluye todas las fases del proceso.',
+            'descripcion' => 'Perfil simplificado para clientes Walk-In. Solo incluye Captura, Enchape, Corte y Entrega, todas asignadas al área de Captura.',
             'configuracion' => $walkInConfig,
             'activo' => true,
             'predeterminado' => false,
