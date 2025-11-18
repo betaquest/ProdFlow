@@ -140,20 +140,24 @@ class MisFases extends Page implements HasTable, HasForms
                         ->columnSpanFull(),
                     Forms\Components\Section::make('🎯 Perfil de Programa')
                         ->description('Selecciona un perfil predefinido que determinará las fases y áreas del programa.')
-                        ->schema([
-                            Forms\Components\Select::make('perfil_programa_id')
-                                ->label('⚠️ PERFIL DEL PROGRAMA')
-                                ->options(function () {
-                                    return \App\Models\PerfilPrograma::where('activo', true)
-                                        ->orderBy('nombre')
-                                        ->get()
-                                        ->mapWithKeys(fn($p) => [$p->id => $p->nombre . ($p->predeterminado ? ' (Predeterminado)' : '')]);
-                                })
-                                ->required()
-                                ->native(false)
-                                ->helperText('⚠️ IMPORTANTE: Walk-In = 3 fases (sin Ingeniería) | In-House = 9 fases (completo)')
-                                ->columnSpanFull(),
-                        ])
+                            ->schema([
+                                Forms\Components\Select::make('perfil_programa_id')
+                                    ->label('⚠️ PERFIL DEL PROGRAMA')
+                                    ->options(\App\Models\PerfilPrograma::where('activo', true)->pluck('nombre', 'id'))
+                                    ->default(function () {
+                                        return \App\Models\PerfilPrograma::predeterminado()->first()?->id;
+                                    })
+                                    ->searchable()
+                                    ->preload()
+                                    ->helperText('⚠️ IMPORTANTE: Walk-In = 3 fases (sin Ingeniería) | In-House = 9 fases (completo)')
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $set('fases_configuradas', null);
+                                        }
+                                    })
+                                    ->columnSpanFull(),
+                            ])
                         ->collapsible()
                         ->collapsed(false),
                     Forms\Components\Section::make('⚙️ Configuración Manual de Fases')
@@ -179,23 +183,25 @@ class MisFases extends Page implements HasTable, HasForms
                         ->default(true)
                         ->columnSpanFull(),
                 ])
-                ->action(function (array $data): void {
-                    $programa = Programa::create([
-                        'proyecto_id' => $data['proyecto_id'],
-                        'perfil_programa_id' => $data['perfil_programa_id'] ?? null,
-                        'nombre' => $data['nombre'],
-                        'descripcion' => $data['descripcion'] ?? null,
-                        'responsable_inicial_id' => null, // Se asigna automáticamente en el Observer
-                        'notas' => $data['notas'] ?? null,
-                        'activo' => $data['activo'] ?? true,
-                        'fases_configuradas' => $data['fases_configuradas'] ?? null,
-                    ]);
+                    ->action(function (array $data): void {
+                        $perfilId = $data['perfil_programa_id'] ?? \App\Models\PerfilPrograma::predeterminado()->first()?->id;
 
-                    Notification::make()
-                        ->title('Programa creado exitosamente')
-                        ->success()
-                        ->send();
-                }),
+                        $programa = Programa::create([
+                            'proyecto_id' => $data['proyecto_id'],
+                            'perfil_programa_id' => $perfilId,
+                            'nombre' => $data['nombre'],
+                            'descripcion' => $data['descripcion'] ?? null,
+                            'responsable_inicial_id' => null,
+                            'notas' => $data['notas'] ?? null,
+                            'activo' => $data['activo'] ?? true,
+                            'fases_configuradas' => $data['fases_configuradas'] ?? null,
+                        ]);
+
+                        Notification::make()
+                            ->title('Programa creado exitosamente')
+                            ->success()
+                            ->send();
+                    }),
         ];
     }
 
