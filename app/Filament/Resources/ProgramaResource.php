@@ -364,7 +364,9 @@ class ProgramaResource extends Resource
                                 'programas.notas',
                                 'programas.activo',
                                 'programas.created_at',
-                                'programas.updated_at'
+                                'programas.updated_at',
+                                'programas.creado_por',
+                                'programas.deleted_at'
                             )
                             ->orderBy('ultimo_movimiento', $direction);
                     })

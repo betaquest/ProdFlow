@@ -18,7 +18,7 @@ class ReportesGenerales extends Page
 
     protected static ?string $navigationGroup = 'Reportes';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 100;
 
     public static function canAccess(): bool
     {
