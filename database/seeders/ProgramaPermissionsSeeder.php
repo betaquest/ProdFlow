@@ -67,5 +67,25 @@ class ProgramaPermissionsSeeder extends Seeder
             $this->command->warn('⚠ No se encontró el rol Captura');
         }
 
+        // Remover permiso ver_reportes de roles que NO deberían tenerlo
+        $rolessinReportes = [
+            'Instalacion',
+            'Finalizado',
+            'Ensamblado',
+            'Corte',
+            'Abastecimiento',
+            'Completado',  // Por si existe este rol antiguo
+            'Armado',      // Por si existe este rol antiguo
+            'Entrega',     // Agregar más roles si es necesario
+        ];
+
+        foreach ($rolessinReportes as $roleName) {
+            $role = Role::where('name', $roleName)->first();
+            if ($role) {
+                $role->revokePermissionTo('programas.ver_reportes');
+                $this->command->info("✓ Permiso ver_reportes removido del rol {$roleName}");
+            }
+        }
+
     }
 }
