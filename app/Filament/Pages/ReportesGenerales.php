@@ -1,18 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\ProgramaResource\Pages;
+namespace App\Filament\Pages;
 
-use App\Filament\Resources\ProgramaResource;
 use App\Models\Programa;
-use Filament\Resources\Pages\Page;
-use Filament\Support\Enums\IconPosition;
+use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
 
-class ReportesProgramas extends Page
+class ReportesGenerales extends Page
 {
-    protected static string $resource = ProgramaResource::class;
-
-    protected static string $view = 'filament.resources.programa-resource.pages.reportes-programas';
+    protected static string $view = 'filament.pages.reportes-generales';
 
     protected static ?string $title = 'Reportes Generales';
 
@@ -24,14 +20,9 @@ class ReportesProgramas extends Page
 
     protected static ?int $navigationSort = 1;
 
-    protected static bool $shouldRegisterNavigation = false;
-
-    /**
-     * Proteger la página con el permiso viewReports
-     */
-    public static function canAccess(array $parameters = []): bool
+    public static function canAccess(): bool
     {
-        return static::getResource()::canViewReports();
+        return auth()->user()->can('programas.ver_reportes');
     }
 
     public function getViewData(): array
