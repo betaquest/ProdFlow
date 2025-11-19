@@ -1,36 +1,36 @@
 <?php
 
-namespace App\Filament\Resources\ProgramaResource\Pages;
+namespace App\Filament\Pages;
 
-use App\Filament\Resources\ProgramaResource;
 use App\Models\Programa;
-use Filament\Resources\Pages\Page;
+use Filament\Pages\Page;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 
-class ReporteDetalleProgramas extends Page implements HasForms
+class EstadoProgramas extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static string $resource = ProgramaResource::class;
-
-    protected static string $view = 'filament.resources.programa-resource.pages.reporte-detalle-programas';
+    protected static string $view = 'filament.pages.estado-programas';
 
     protected static ?string $title = 'Estado de Programas';
 
-    protected static bool $shouldRegisterNavigation = false;
+    protected static ?string $navigationLabel = 'Estado de Programas';
+
+    protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
+
+    protected static ?string $navigationGroup = 'Reportes';
+
+    protected static ?int $navigationSort = 2;
 
     public ?array $data = [];
 
-    /**
-     * Proteger la página con el permiso viewReports
-     */
-    public static function canAccess(array $parameters = []): bool
+    public static function canAccess(): bool
     {
-        return static::getResource()::canViewReports();
+        return auth()->user()->can('programas.ver_reportes');
     }
 
     public function mount(): void
