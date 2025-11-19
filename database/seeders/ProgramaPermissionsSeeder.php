@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -30,31 +29,43 @@ class ProgramaPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Buscar el rol de Ingeniería
-        $ingenieriaRole = Role::where('name', 'Ingeniería')->first();
+        // Asignar todos los permisos al rol Administrador
+        $adminRole = Role::where('name', 'Administrador')->first();
+
+        if ($adminRole) {
+            $adminRole->givePermissionTo($permissions);
+            $this->command->info('✓ Permisos de programas asignados al rol Administrador');
+        } else {
+            $this->command->warn('⚠ No se encontró el rol Administrador');
+        }
+
+        // Buscar el rol de Ingenieria (sin tilde)
+        $ingenieriaRole = Role::where('name', 'Ingenieria')->first();
 
         if ($ingenieriaRole) {
-            // Asignar todos los permisos de programas al rol de Ingeniería
+            // Asignar todos los permisos de programas al rol de Ingenieria
             $ingenieriaRole->givePermissionTo($permissions);
 
-            $this->command->info('✓ Permisos de programas asignados al rol Ingeniería');
+            $this->command->info('✓ Permisos de programas asignados al rol Ingenieria');
         } else {
-            $this->command->warn('⚠ No se encontró el rol Ingeniería');
+            $this->command->warn('⚠ No se encontró el rol Ingenieria');
         }
 
-        // Opcional: Asignar permisos a otros roles si es necesario
-        $roles = [
-            'Instalación' => ['programas.ver'],
-            'Completado' => ['programas.ver'],
-            'Armado' => ['programas.ver'],
-        ];
+        // Asignar permisos al rol Captura (incluyendo ver reportes)
+        $capturaRole = Role::where('name', 'Captura')->first();
 
-        foreach ($roles as $roleName => $rolePermissions) {
-            $role = Role::where('name', $roleName)->first();
-            if ($role) {
-                $role->givePermissionTo($rolePermissions);
-                $this->command->info("✓ Permisos asignados al rol {$roleName}");
-            }
+        if ($capturaRole) {
+            $capturaRole->givePermissionTo([
+                'programas.ver',
+                'programas.crear',
+                'programas.editar',
+                'programas.ver_reportes',
+            ]);
+
+            $this->command->info('✓ Permisos de programas asignados al rol Captura');
+        } else {
+            $this->command->warn('⚠ No se encontró el rol Captura');
         }
+
     }
 }
