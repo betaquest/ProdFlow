@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Programa extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'proyecto_id',
         'perfil_programa_id',
@@ -14,7 +17,8 @@ class Programa extends Model
         'fases_configuradas',
         'responsable_inicial_id',
         'notas',
-        'activo'
+        'activo',
+        'creado_por'
     ];
 
     protected $casts = [
@@ -40,6 +44,16 @@ class Programa extends Model
     public function perfilPrograma()
     {
         return $this->belongsTo(PerfilPrograma::class, 'perfil_programa_id');
+    }
+
+    public function creador()
+    {
+        return $this->belongsTo(User::class, 'creado_por');
+    }
+
+    public function resetHistory()
+    {
+        return $this->hasMany(ProgramaResetHistory::class);
     }
 
     /**

@@ -21,6 +21,9 @@ class ProgramaPermissionsSeeder extends Seeder
             'programas.editar',
             'programas.eliminar',
             'programas.ver_reportes',
+            'programas.reiniciar',
+            'programas.ver_historial_reinicios',
+            'programas.restaurar_avances',
         ];
 
         foreach ($permissions as $permission) {

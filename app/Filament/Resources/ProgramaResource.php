@@ -489,6 +489,7 @@ class ProgramaResource extends Resource
             'edit' => Pages\EditPrograma::route('/{record}/edit'),
             'timeline' => Pages\TimelinePrograma::route('/{record}/timeline'),
             'reportes' => Pages\ReportesProgramas::route('/reportes'),
+            'reporte-detalle' => Pages\ReporteDetalleProgramas::route('/reporte-detalle'),
         ];
     }
 }

@@ -14,9 +14,17 @@ class ReportesProgramas extends Page
 
     protected static string $view = 'filament.resources.programa-resource.pages.reportes-programas';
 
-    protected static ?string $title = 'Reportes de Programas';
+    protected static ?string $title = 'Reportes Generales';
 
-    protected static ?string $navigationLabel = 'Reportes';
+    protected static ?string $navigationLabel = 'Reportes Generales';
+
+    protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
+
+    protected static ?string $navigationGroup = 'Producción';
+
+    protected static ?int $navigationSort = 2;
+
+    protected static bool $shouldRegisterNavigation = true;
 
     /**
      * Proteger la página con el permiso viewReports
