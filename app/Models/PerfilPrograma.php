@@ -23,6 +23,15 @@ class PerfilPrograma extends Model
     ];
 
     /**
+     * Relación muchos a muchos con áreas
+     */
+    public function areas()
+    {
+        return $this->belongsToMany(Area::class, 'area_perfil_programa', 'perfil_programa_id', 'area_id')
+            ->withTimestamps();
+    }
+
+    /**
      * Relación con programas
      */
     public function programas()

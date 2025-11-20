@@ -48,6 +48,16 @@ class PerfilProgramaResource extends Resource
                     ->placeholder('Describe el propósito de este perfil...')
                     ->columnSpanFull(),
 
+                Forms\Components\CheckboxList::make('areas')
+                    ->label('Áreas Autorizadas para Crear')
+                    ->relationship('areas', 'nombre')
+                    ->options(fn () => Area::orderBy('nombre')->pluck('nombre', 'id'))
+                    ->columns(3)
+                    ->gridDirection('row')
+                    ->bulkToggleable()
+                    ->helperText('Solo usuarios de estas áreas podrán crear programas con este perfil. Deja vacío para permitir a todos (excepto administradores que siempre pueden).')
+                    ->columnSpanFull(),
+
                 Forms\Components\Toggle::make('activo')
                     ->label('Activo')
                     ->default(true)
@@ -137,6 +147,14 @@ class PerfilProgramaResource extends Resource
                     ->tooltip(fn ($record) => $record->descripcion)
                     ->placeholder('Sin descripción'),
 
+                Tables\Columns\TextColumn::make('areas.nombre')
+                    ->label('Áreas Autorizadas')
+                    ->badge()
+                    ->color('warning')
+                    ->separator(',')
+                    ->placeholder('Todas las áreas')
+                    ->wrap(),
+
                 Tables\Columns\TextColumn::make('fases_count')
                     ->label('# Fases')
                     ->getStateUsing(fn ($record) => count($record->configuracion['fases'] ?? []))
@@ -179,8 +197,12 @@ class PerfilProgramaResource extends Resource
                     ->falseLabel('No predeterminados'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->label('')
+                    ->tooltip('Editar perfil'),
                 Tables\Actions\DeleteAction::make()
+                    ->label('')
+                    ->tooltip('Eliminar perfil')
                     ->before(function ($record) {
                         if ($record->programas()->count() > 0) {
                             \Filament\Notifications\Notification::make()

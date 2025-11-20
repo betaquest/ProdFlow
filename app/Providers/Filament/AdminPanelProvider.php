@@ -109,6 +109,36 @@ class AdminPanelProvider extends PanelProvider
                                 return response;
                             });
                     };
+
+                    // Fix para modals/slideovers que desaparecen
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Observar cambios en el DOM para detectar modales que se ocultan incorrectamente
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                mutation.addedNodes.forEach((node) => {
+                                    if (node.nodeType === 1 && node.hasAttribute && node.hasAttribute('x-data')) {
+                                        // Forzar re-inicialización de Alpine.js en modales
+                                        if (typeof Alpine !== 'undefined') {
+                                            Alpine.initTree(node);
+                                        }
+                                    }
+                                });
+                            });
+                        });
+
+                        observer.observe(document.body, {
+                            childList: true,
+                            subtree: true
+                        });
+
+                        // Fix específico para slideovers/modals de Filament
+                        document.addEventListener('livewire:navigated', () => {
+                            // Reinicializar Alpine.js después de navegación de Livewire
+                            if (typeof Alpine !== 'undefined') {
+                                Alpine.start();
+                            }
+                        });
+                    });
                 </script>
             HTML)
         );

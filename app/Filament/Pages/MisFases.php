@@ -47,7 +47,10 @@ class MisFases extends Page implements HasTable, HasForms
 
     public static function getNavigationBadge(): ?string
     {
-        $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
+        $query = AvanceFase::whereIn('estado', ['pending', 'progress'])
+            ->whereHas('programa', function ($q) {
+                $q->where('activo', true);
+            });
 
         // Solo el Administrador ve el total de todas las tareas
         // Los demás usuarios solo ven las de su área
@@ -62,7 +65,10 @@ class MisFases extends Page implements HasTable, HasForms
 
     public static function getNavigationBadgeColor(): ?string
     {
-        $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
+        $query = AvanceFase::whereIn('estado', ['pending', 'progress'])
+            ->whereHas('programa', function ($q) {
+                $q->where('activo', true);
+            });
 
         // Solo el Administrador ve el total de todas las tareas
         // Los demás usuarios solo ven las de su área
@@ -138,14 +144,110 @@ class MisFases extends Page implements HasTable, HasForms
                         ->label('Descripción')
                         ->rows(3)
                         ->columnSpanFull(),
+
+                    Forms\Components\Hidden::make('perfil_programa_id')
+                        ->default(function () {
+                            $user = auth()->user();
+                            $query = \App\Models\PerfilPrograma::where('activo', true);
+
+                            // Si es administrador
+                            if ($user->hasRole('Administrador')) {
+                                $perfilesDisponibles = $query->get();
+                            } else {
+                                // Para otros usuarios, filtrar por área
+                                $userAreaId = $user->area_id;
+                                $perfilesDisponibles = $query->where(function ($q) use ($userAreaId) {
+                                    $q->whereDoesntHave('areas')
+                                      ->orWhereHas('areas', function ($areaQuery) use ($userAreaId) {
+                                          $areaQuery->where('areas.id', $userAreaId);
+                                      });
+                                })->get();
+                            }
+
+                            // Si solo hay un perfil disponible, seleccionarlo automáticamente
+                            if ($perfilesDisponibles->count() === 1) {
+                                return $perfilesDisponibles->first()->id;
+                            }
+
+                            // Si hay más de uno, intentar obtener el predeterminado de los disponibles
+                            $predeterminado = $perfilesDisponibles->where('predeterminado', true)->first();
+                            return $predeterminado?->id;
+                        })
+                        ->dehydrated()
+                        ->visible(function () {
+                            $user = auth()->user();
+                            $query = \App\Models\PerfilPrograma::where('activo', true);
+
+                            // Si es administrador
+                            if ($user->hasRole('Administrador')) {
+                                $perfilesDisponibles = $query->get();
+                            } else {
+                                // Para otros usuarios, filtrar por área
+                                $userAreaId = $user->area_id;
+                                $perfilesDisponibles = $query->where(function ($q) use ($userAreaId) {
+                                    $q->whereDoesntHave('areas')
+                                      ->orWhereHas('areas', function ($areaQuery) use ($userAreaId) {
+                                          $areaQuery->where('areas.id', $userAreaId);
+                                      });
+                                })->get();
+                            }
+
+                            // Mostrar el hidden solo si hay 1 perfil (cuando la sección está oculta)
+                            return $perfilesDisponibles->count() === 1;
+                        }),
+
                     Forms\Components\Section::make('🎯 Perfil de Programa')
                         ->description('Selecciona un perfil predefinido que determinará las fases y áreas del programa.')
                             ->schema([
                                 Forms\Components\Select::make('perfil_programa_id')
                                     ->label('⚠️ PERFIL DEL PROGRAMA')
-                                    ->options(\App\Models\PerfilPrograma::where('activo', true)->pluck('nombre', 'id'))
+                                    ->options(function () {
+                                        $user = auth()->user();
+                                        $query = \App\Models\PerfilPrograma::where('activo', true);
+
+                                        // Si es administrador, mostrar todos los perfiles
+                                        if ($user->hasRole('Administrador')) {
+                                            return $query->pluck('nombre', 'id');
+                                        }
+
+                                        // Si no es administrador, filtrar por área del usuario
+                                        $userAreaId = $user->area_id;
+
+                                        // Obtener perfiles que no tienen áreas asignadas (disponibles para todos)
+                                        // O que tienen el área del usuario
+                                        return $query->where(function ($q) use ($userAreaId) {
+                                            $q->whereDoesntHave('areas')  // Perfiles sin áreas asignadas
+                                              ->orWhereHas('areas', function ($areaQuery) use ($userAreaId) {
+                                                  $areaQuery->where('areas.id', $userAreaId);
+                                              });
+                                        })->pluck('nombre', 'id');
+                                    })
                                     ->default(function () {
-                                        return \App\Models\PerfilPrograma::predeterminado()->first()?->id;
+                                        $user = auth()->user();
+                                        $query = \App\Models\PerfilPrograma::where('activo', true);
+
+                                        // Si es administrador
+                                        if ($user->hasRole('Administrador')) {
+                                            $perfilesDisponibles = $query->get();
+                                        } else {
+                                            // Para otros usuarios, filtrar por área
+                                            $userAreaId = $user->area_id;
+                                            $perfilesDisponibles = $query->where(function ($q) use ($userAreaId) {
+                                                $q->whereDoesntHave('areas')
+                                                  ->orWhereHas('areas', function ($areaQuery) use ($userAreaId) {
+                                                      $areaQuery->where('areas.id', $userAreaId);
+                                                  });
+                                            })->get();
+                                        }
+
+                                        // Si solo hay un perfil disponible, seleccionarlo automáticamente
+                                        if ($perfilesDisponibles->count() === 1) {
+                                            return $perfilesDisponibles->first()->id;
+                                        }
+
+                                        // Si hay más de uno, intentar obtener el predeterminado
+                                        $predeterminado = $perfilesDisponibles->where('predeterminado', true)->first();
+                                        return $predeterminado?->id;
                                     })
                                     ->searchable()
                                     ->preload()
@@ -159,7 +261,28 @@ class MisFases extends Page implements HasTable, HasForms
                                     ->columnSpanFull(),
                             ])
                         ->collapsible()
-                        ->collapsed(false),
+                        ->collapsed(false)
+                        ->hidden(function () {
+                            $user = auth()->user();
+                            $query = \App\Models\PerfilPrograma::where('activo', true);
+
+                            // Si es administrador
+                            if ($user->hasRole('Administrador')) {
+                                $perfilesDisponibles = $query->get();
+                            } else {
+                                // Para otros usuarios, filtrar por área
+                                $userAreaId = $user->area_id;
+                                $perfilesDisponibles = $query->where(function ($q) use ($userAreaId) {
+                                    $q->whereDoesntHave('areas')
+                                      ->orWhereHas('areas', function ($areaQuery) use ($userAreaId) {
+                                          $areaQuery->where('areas.id', $userAreaId);
+                                      });
+                                })->get();
+                            }
+
+                            // Ocultar la sección si solo hay 1 perfil disponible
+                            return $perfilesDisponibles->count() === 1;
+                        }),
                     Forms\Components\Section::make('⚙️ Configuración Manual de Fases')
                         ->description('Alternativamente, puedes configurar las fases manualmente (ignora el perfil seleccionado).')
                         ->schema([
@@ -173,7 +296,8 @@ class MisFases extends Page implements HasTable, HasForms
                                 ->columnSpanFull(),
                         ])
                         ->collapsible()
-                        ->collapsed(true),
+                        ->collapsed(true)
+                        ->hidden(fn () => !auth()->user()->can('programas.configurar_fases_manual')),
                     Forms\Components\Textarea::make('notas')
                         ->label('Notas')
                         ->rows(3)
@@ -207,7 +331,10 @@ class MisFases extends Page implements HasTable, HasForms
 
     public function getTabs(): array
     {
-        $baseQuery = AvanceFase::query();
+        $baseQuery = AvanceFase::query()
+            ->whereHas('programa', function ($q) {
+                $q->where('activo', true);
+            });
 
         // Filtrar por área si no es administrador
         if (!Auth::user()->hasRole('Administrador')) {
@@ -241,7 +368,11 @@ class MisFases extends Page implements HasTable, HasForms
 
     public function table(Table $table): Table
     {
-        $query = AvanceFase::query()->with(['programa.proyecto.cliente', 'fase', 'area']);
+        $query = AvanceFase::query()
+            ->with(['programa.proyecto.cliente', 'fase', 'area'])
+            ->whereHas('programa', function ($q) {
+                $q->where('activo', true);
+            });
 
         // Solo el Administrador puede ver todos los procesos
         // Los demás usuarios solo ven las de su área
