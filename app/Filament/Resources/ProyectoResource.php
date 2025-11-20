@@ -39,13 +39,16 @@ class ProyectoResource extends Resource
                 Forms\Components\Select::make('cliente_id')
                     ->label('Cliente')
                     ->relationship('cliente', 'nombre')
-                    ->required(),
+                    ->required()
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre del proyecto')
-                    ->required(),
+                    ->required()
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
                 Forms\Components\Textarea::make('descripcion')
                     ->label('Descripción')
-                    ->rows(3),
+                    ->rows(3)
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
                 Forms\Components\Textarea::make('notas')
                     ->label('Notas')
                     ->rows(3),

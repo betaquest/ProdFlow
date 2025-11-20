@@ -115,7 +115,8 @@ class MisFases extends Page implements HasTable, HasForms
                         ->default(false)
                         ->live()
                         ->helperText('Activar para ver proyectos marcados como finalizados')
-                        ->columnSpanFull(),
+                        ->columnSpanFull()
+                        ->hidden(),
 
                     Forms\Components\Select::make('proyecto_id')
                         ->label('Proyecto')
@@ -305,7 +306,8 @@ class MisFases extends Page implements HasTable, HasForms
                     Forms\Components\Toggle::make('activo')
                         ->label('Activo')
                         ->default(true)
-                        ->columnSpanFull(),
+                        ->columnSpanFull()
+                        ->hidden(),
                 ])
                     ->action(function (array $data): void {
                         $perfilId = $data['perfil_programa_id'] ?? \App\Models\PerfilPrograma::predeterminado()->first()?->id;

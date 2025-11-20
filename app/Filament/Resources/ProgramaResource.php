@@ -75,15 +75,18 @@ class ProgramaResource extends Resource
                     ->searchable()
                     ->preload()
                     ->required()
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre del programa')
                     ->required()
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
                 Forms\Components\Textarea::make('descripcion')
                     ->label('Descripción')
                     ->rows(3)
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
 
                 Forms\Components\Hidden::make('perfil_programa_id')
                     ->default(function () {
