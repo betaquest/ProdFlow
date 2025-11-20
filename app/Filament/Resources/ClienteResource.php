@@ -28,7 +28,8 @@ class ClienteResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('nombre')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('clientes.editar')),
                 Forms\Components\TextInput::make('alias')
                     ->label('Alias / Apodo')
                     ->maxLength(255),

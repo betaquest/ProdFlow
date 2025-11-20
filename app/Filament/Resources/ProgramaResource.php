@@ -76,17 +76,17 @@ class ProgramaResource extends Resource
                     ->preload()
                     ->required()
                     ->columnSpanFull()
-                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('programas.editar')),
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre del programa')
                     ->required()
                     ->columnSpanFull()
-                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('programas.editar')),
                 Forms\Components\Textarea::make('descripcion')
                     ->label('Descripción')
                     ->rows(3)
                     ->columnSpanFull()
-                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->hasRole('Administrador')),
+                    ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('programas.editar')),
 
                 Forms\Components\Hidden::make('perfil_programa_id')
                     ->default(function () {

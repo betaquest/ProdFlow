@@ -129,9 +129,13 @@ class AvanceFaseResource extends Resource
                         ->icon('heroicon-o-play')
                         ->color('info')
                         ->tooltip('Iniciar fase')
-                        ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
+                        ->visible(fn (AvanceFase $record) => $record->estado === 'pending' && $record->programa !== null)
                         ->modalHeading('Iniciar Fase')
                         ->modalDescription(function (AvanceFase $record) {
+                            if (!$record->programa) {
+                                return 'Error: El programa asociado no existe.';
+                            }
+
                             // Obtener las fases configuradas para este programa
                             $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
                             $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
@@ -156,6 +160,10 @@ class AvanceFaseResource extends Resource
                             return '¿Deseas iniciar esta fase ahora?';
                         })
                         ->form(function (AvanceFase $record) {
+                            if (!$record->programa) {
+                                return [];
+                            }
+
                             // Obtener las fases configuradas para este programa
                             $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
                             $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
@@ -185,6 +193,15 @@ class AvanceFaseResource extends Resource
                             return [];
                         })
                         ->action(function (AvanceFase $record) {
+                            if (!$record->programa) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Error')
+                                    ->body('El programa asociado no existe.')
+                                    ->send();
+                                return;
+                            }
+
                             // Obtener las fases configuradas para este programa
                             $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
                             $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
@@ -280,7 +297,7 @@ class AvanceFaseResource extends Resource
                         })
                         ->visible(function (AvanceFase $record) {
                             // Solo visible si está finalizado
-                            if ($record->estado !== 'done') {
+                            if ($record->estado !== 'done' || !$record->programa) {
                                 return false;
                             }
 
@@ -303,6 +320,15 @@ class AvanceFaseResource extends Resource
                         })
                         ->disabled(fn (AvanceFase $record) => $record->fecha_liberacion !== null)
                         ->action(function (AvanceFase $record) {
+                            if (!$record->programa) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Error')
+                                    ->body('El programa asociado no existe.')
+                                    ->send();
+                                return;
+                            }
+
                             $faseActual = $record->fase;
 
                             // Obtener las fases configuradas para este programa
