@@ -138,6 +138,51 @@ class AdminPanelProvider extends PanelProvider
                                 Alpine.start();
                             }
                         });
+
+                        // Fix para backdrop oscuro que se queda sin modal
+                        // Solo limpiar cuando se cierra un modal, no constantemente
+                        const cleanupOrphanBackdrops = () => {
+                            setTimeout(() => {
+                                // Buscar todos los dialogos
+                                const allDialogs = document.querySelectorAll('[role="dialog"]');
+
+                                allDialogs.forEach(dialog => {
+                                    // Verificar si tiene contenido de modal visible
+                                    const hasModalContent = dialog.querySelector('.fi-modal-content, .fi-slideover-content, .fi-modal-window, .fi-slideover-window');
+
+                                    // Si no tiene contenido visible, es un backdrop huérfano
+                                    if (!hasModalContent) {
+                                        const computedStyle = window.getComputedStyle(dialog);
+                                        // Solo remover si está realmente vacío
+                                        if (computedStyle.display !== 'none' && dialog.children.length === 0) {
+                                            console.log('Removiendo backdrop huérfano');
+                                            dialog.remove();
+                                        }
+                                    }
+                                });
+
+                                // Restaurar overflow si no hay diálogos
+                                const remainingDialogs = document.querySelectorAll('[role="dialog"]');
+                                if (remainingDialogs.length === 0) {
+                                    document.body.style.overflow = '';
+                                    document.documentElement.style.overflow = '';
+                                }
+                            }, 300);
+                        };
+
+                        // Listener para cerrar modal con ESC
+                        document.addEventListener('keydown', (e) => {
+                            if (e.key === 'Escape') {
+                                cleanupOrphanBackdrops();
+                            }
+                        });
+
+                        // Click fuera del modal para cerrar
+                        document.addEventListener('click', (e) => {
+                            if (e.target.closest('.fi-modal-close-overlay')) {
+                                cleanupOrphanBackdrops();
+                            }
+                        });
                     });
                 </script>
             HTML)
