@@ -999,6 +999,7 @@ class MisFases extends Page implements HasTable, HasForms
                             $record->update([
                                 'estado' => 'progress',
                                 'fecha_fin' => null,
+                                'fecha_liberacion' => null,
                             ]);
 
                             $mensaje = 'La fase ha vuelto a estado "En Progreso"';
