@@ -24,6 +24,7 @@ class ProgramaPermissionsSeeder extends Seeder
             'programas.ver_historial_reinicios',
             'programas.restaurar_avances',
             'programas.configurar_fases_manual',
+            'programas.cambiar_area_avance',
         ];
 
         foreach ($permissions as $permission) {

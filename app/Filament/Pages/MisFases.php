@@ -7,6 +7,7 @@ use App\Models\Fase;
 use App\Models\User;
 use App\Models\Programa;
 use App\Models\Proyecto;
+use App\Models\Area;
 use App\Notifications\FaseLiberada;
 use Filament\Pages\Page;
 use Filament\Tables;
@@ -1053,6 +1054,133 @@ class MisFases extends Page implements HasTable, HasForms
                         return $descripcion;
                     })
                     ->modalSubmitActionLabel('Sí, deshacer'),
+
+                Tables\Actions\Action::make('cambiar_area')
+                    ->icon('heroicon-o-arrow-path-rounded-square')
+                    ->color('warning')
+                    ->label('')
+                    ->tooltip('Cambiar área asignada')
+                    ->visible(fn () => Auth::user()?->can('programas.cambiar_area_avance') ?? false)
+                    ->modalHeading('Cambiar Área del Avance')
+                    ->modalDescription(fn (AvanceFase $record) =>
+                        "📋 Programa: {$record->programa->nombre}\n" .
+                        "🔧 Fase: {$record->fase->nombre}\n" .
+                        "📍 Área actual: {$record->area->nombre}\n\n" .
+                        "Selecciona la nueva área para este avance de fase."
+                    )
+                    ->form(fn (AvanceFase $record) => [
+                        Forms\Components\Select::make('nueva_area_id')
+                            ->label('Nueva Área')
+                            ->options(Area::where('activo', true)->pluck('nombre', 'id'))
+                            ->default($record->area_id)
+                            ->required()
+                            ->searchable()
+                            ->helperText('Selecciona el área a la que deseas reasignar este avance.')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Toggle::make('cambiar_responsable')
+                            ->label('Cambiar responsable automáticamente')
+                            ->default(true)
+                            ->helperText('Si está activado, se asignará automáticamente al primer usuario de la nueva área con el rol correspondiente a esta fase.')
+                            ->columnSpanFull()
+                            ->live(),
+
+                        Forms\Components\Select::make('nuevo_responsable_id')
+                            ->label('Nuevo Responsable')
+                            ->options(function ($get, AvanceFase $record) {
+                                $nuevaAreaId = $get('nueva_area_id');
+                                if (!$nuevaAreaId) {
+                                    return [];
+                                }
+
+                                // Obtener usuarios de la nueva área con el rol de la fase
+                                return User::where('area_id', $nuevaAreaId)
+                                    ->role($record->fase->nombre)
+                                    ->pluck('name', 'id');
+                            })
+                            ->searchable()
+                            ->helperText('Opcional: Selecciona manualmente el nuevo responsable.')
+                            ->visible(fn ($get) => !$get('cambiar_responsable'))
+                            ->columnSpanFull(),
+
+                        Forms\Components\Textarea::make('nota_cambio')
+                            ->label('Nota del cambio (opcional)')
+                            ->rows(3)
+                            ->placeholder('Agrega una nota explicando por qué se cambió el área...')
+                            ->columnSpanFull(),
+                    ])
+                    ->action(function (AvanceFase $record, array $data) {
+                        $areaActual = $record->area;
+                        $nuevaArea = Area::find($data['nueva_area_id']);
+
+                        if (!$nuevaArea) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Error')
+                                ->body('El área seleccionada no existe.')
+                                ->send();
+                            return;
+                        }
+
+                        // Validar que no sea la misma área
+                        if ($record->area_id === $data['nueva_area_id']) {
+                            Notification::make()
+                                ->warning()
+                                ->title('Sin cambios')
+                                ->body('El área seleccionada es la misma que la actual.')
+                                ->send();
+                            return;
+                        }
+
+                        $updateData = [
+                            'area_id' => $data['nueva_area_id'],
+                        ];
+
+                        // Determinar el nuevo responsable
+                        if ($data['cambiar_responsable']) {
+                            // Asignar automáticamente al primer usuario de la nueva área con el rol de la fase
+                            $nuevoResponsable = User::where('area_id', $data['nueva_area_id'])
+                                ->role($record->fase->nombre)
+                                ->first();
+
+                            if ($nuevoResponsable) {
+                                $updateData['responsable_id'] = $nuevoResponsable->id;
+                            }
+                        } elseif (isset($data['nuevo_responsable_id'])) {
+                            $updateData['responsable_id'] = $data['nuevo_responsable_id'];
+                        }
+
+                        // Actualizar el registro
+                        $record->update($updateData);
+
+                        // Log para auditoría
+                        \Log::info("Área cambiada en avance de fase", [
+                            'avance_id' => $record->id,
+                            'programa' => $record->programa->nombre,
+                            'fase' => $record->fase->nombre,
+                            'area_anterior' => $areaActual->nombre,
+                            'area_nueva' => $nuevaArea->nombre,
+                            'responsable_nuevo' => $updateData['responsable_id'] ?? 'sin cambio',
+                            'nota' => $data['nota_cambio'] ?? 'sin nota',
+                            'usuario_que_cambio' => Auth::user()->name,
+                        ]);
+
+                        $mensaje = "El área ha sido cambiada de '{$areaActual->nombre}' a '{$nuevaArea->nombre}'.";
+
+                        if (isset($updateData['responsable_id'])) {
+                            $nuevoResponsableNombre = User::find($updateData['responsable_id'])->name ?? 'Desconocido';
+                            $mensaje .= " Nuevo responsable: {$nuevoResponsableNombre}";
+                        }
+
+                        Notification::make()
+                            ->success()
+                            ->title('Área cambiada exitosamente')
+                            ->body($mensaje)
+                            ->duration(6000)
+                            ->send();
+                    })
+                    ->modalSubmitActionLabel('Cambiar área')
+                    ->requiresConfirmation(),
 
                 Tables\Actions\DeleteAction::make()
                     ->icon('heroicon-o-trash')
