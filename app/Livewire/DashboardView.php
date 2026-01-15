@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\AvanceFase;
 use App\Models\Dashboard;
 use App\Models\Fase;
 use App\Models\Programa;
@@ -52,7 +53,10 @@ class DashboardView extends Component
 
     public function loadData()
     {
-        $query = Programa::query()->with(['proyecto.cliente', 'avances.fase'])->where('programas.activo', true);
+        // OPTIMIZACIÓN: Usar scope withOptimizations para eager loading
+        $query = Programa::query()
+            ->withOptimizations()
+            ->where('programas.activo', true);
 
         // Filtrar por clientes si no se muestran todos
         if (!$this->dashboard->todos_clientes && $this->dashboard->clientes_ids) {
@@ -114,18 +118,31 @@ class DashboardView extends Component
                 break;
         }
 
+        // OPTIMIZACIÓN: Traer todos los datos de una vez (NO lazy loading)
         $programas = $query->get();
+        
+        // OPTIMIZACIÓN: Precalcular todos los avances agrupados por programa
+        $avancesByPrograma = AvanceFase::whereIn(
+            'programa_id',
+            $programas->pluck('id')
+        )
+        ->with('fase')
+        ->get()
+        ->groupBy('programa_id');
 
         // Filtrar programas finalizados antiguos si está habilitado
         if ($this->dashboard->ocultar_finalizados_antiguos) {
             $hoy = now()->startOfDay();
 
-            $programas = $programas->filter(function ($programa) use ($hoy) {
+            $programas = $programas->filter(function ($programa) use ($hoy, $avancesByPrograma) {
                 $todasFasesCompletadas = true;
                 $ultimaFechaFinalizacion = null;
 
+                // OPTIMIZACIÓN: Usar avances precargados
+                $programaAvances = $avancesByPrograma->get($programa->id, collect());
+
                 foreach ($this->fases as $fase) {
-                    $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+                    $avance = $programaAvances->firstWhere('fase_id', $fase->id);
 
                     // Si la fase no existe o no está completada, el programa sigue activo
                     if (!$avance || $avance->estado !== 'done') {
@@ -164,8 +181,12 @@ class DashboardView extends Component
             $fasesProgramaObjs = $this->fases->whereIn('id', $fasesPrograma);
 
             $todasFasesCompletadas = true;
+            
+            // OPTIMIZACIÓN: Usar avances precargados
+            $programaAvances = $avancesByPrograma->get($programa->id, collect());
+            
             foreach ($fasesProgramaObjs as $fase) {
-                $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+                $avance = $programaAvances->firstWhere('fase_id', $fase->id);
                 if (!$avance || $avance->estado !== 'done') {
                     $todasFasesCompletadas = false;
                     break;
@@ -205,15 +226,27 @@ class DashboardView extends Component
             }
         }
 
-        // Recalcular estadísticas
+        // OPTIMIZACIÓN: Calcular estadísticas en una sola pasada
+        $this->calcularEstadisticas($programasFiltrados, $avancesByPrograma);
+    }
+
+    /**
+     * OPTIMIZACIÓN: Extraído en método separado para claridad
+     * Calcula estadísticas usando avances precargados
+     */
+    private function calcularEstadisticas($programas, $avancesByPrograma)
+    {
         $this->totalDone = 0;
         $this->totalProgress = 0;
         $this->totalPending = 0;
         $totalFases = 0;
 
-        foreach ($this->programas as $programa) {
+        foreach ($programas as $programa) {
+            // OPTIMIZACIÓN: Usar avances precargados
+            $avances = $avancesByPrograma->get($programa->id, collect());
+            
             foreach ($this->fases as $fase) {
-                $avance = $programa->avances->firstWhere('fase_id', $fase->id);
+                $avance = $avances->firstWhere('fase_id', $fase->id);
                 $estado = $avance?->estado ?? 'pending';
                 $totalFases++;
 
@@ -225,7 +258,9 @@ class DashboardView extends Component
             }
         }
 
-        $this->porcentaje = $totalFases > 0 ? round(($this->totalDone / $totalFases) * 100, 1) : 0;
+        $this->porcentaje = $totalFases > 0 
+            ? round(($this->totalDone / $totalFases) * 100, 1) 
+            : 0;
     }
 
     public function render()

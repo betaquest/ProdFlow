@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasCommonScopes;
+use Illuminate\Support\Collection;
 
 class Fase extends Model
 {
+    use HasCommonScopes;
     protected $fillable = [
         'nombre', 'alias', 'orden', 'area_id', 'requiere_aprobacion', 'estado', 'activo',
     ];
@@ -54,8 +57,9 @@ class Fase extends Model
 
     /**
      * Verificar si la fase anterior está completada para un programa específico
+     * OPTIMIZADO: Acepta colección precargada de avances para evitar queries adicionales
      */
-    public function puedeAvanzar($programaId): bool
+    public function puedeAvanzar($programaId, Collection $avances = null): bool
     {
         $faseAnterior = $this->faseAnterior();
 
@@ -63,9 +67,18 @@ class Fase extends Model
             return true; // Es la primera fase
         }
 
-        $avanceAnterior = AvanceFase::where('programa_id', $programaId)
-            ->where('fase_id', $faseAnterior->id)
-            ->first();
+        if ($avances) {
+            // Usar datos precargados
+            $avanceAnterior = $avances->firstWhere(fn($a) => 
+                $a->programa_id === $programaId && 
+                $a->fase_id === $faseAnterior->id
+            );
+        } else {
+            // Fallback: solo si no tenemos datos precargados
+            $avanceAnterior = AvanceFase::where('programa_id', $programaId)
+                ->where('fase_id', $faseAnterior->id)
+                ->first();
+        }
 
         return $avanceAnterior && $avanceAnterior->estado === 'done';
     }

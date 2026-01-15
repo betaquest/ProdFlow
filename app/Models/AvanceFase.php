@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\HasCommonScopes;
 
 class AvanceFase extends Model
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, HasCommonScopes;
 
     protected $fillable = [
         'programa_id',
@@ -52,10 +53,56 @@ class AvanceFase extends Model
         return $this->belongsTo(Area::class);
     }
 
+    /**
+     * Scope para optimizar carga
+     */
+    public function scopeOptimized($query)
+    {
+        return $query->with(['programa', 'fase', 'responsable', 'area']);
+    }
+
+    /**
+     * Scope por programa
+     */
+    public function scopeByPrograma($query, $programaId)
+    {
+        return $query->where('programa_id', $programaId);
+    }
+
+    /**
+     * Scope por fase
+     */
+    public function scopeByFase($query, $faseId)
+    {
+        return $query->where('fase_id', $faseId);
+    }
+
+    /**
+     * Scope para completados
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('estado', 'done');
+    }
+
+    /**
+     * Scope para en progreso
+     */
+    public function scopeInProgress($query)
+    {
+        return $query->where('estado', 'progress');
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logAll()
+            ->logOnly([
+                'estado',
+                'fecha_inicio',
+                'fecha_fin',
+                'responsable_id',
+                'notas_finalizacion'
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn (string $eventName) => "Avance {$eventName}");

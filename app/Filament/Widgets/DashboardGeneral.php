@@ -15,7 +15,7 @@ class DashboardGeneral extends BaseWidget
 
     protected static ?int $sort = 1;
 
-    protected static ?string $pollingInterval = '30s';
+    protected static ?string $pollingInterval = '60s';
 
     public function table(Table $table): Table
     {
@@ -44,6 +44,7 @@ class DashboardGeneral extends BaseWidget
                     ->view('filament.tables.columns.fases-status'),
             ])
             ->striped()
-            ->defaultPaginationPageOption(50);
+            ->defaultPaginationPageOption(25)
+            ->paginated([25, 50]);
     }
 }

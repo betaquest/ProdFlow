@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\HasCommonScopes;
 
 class Programa extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasCommonScopes;
 
     protected $fillable = [
         'proyecto_id',
@@ -56,8 +57,20 @@ class Programa extends Model
         return $this->hasMany(ProgramaResetHistory::class);
     }
 
-    /**
-     * Obtener las fases configuradas para este programa (solo activas)
+    /**     * Scope para optimizar carga con eager loading
+     */
+    public function scopeWithOptimizations($query)
+    {
+        return $query->with([
+            'proyecto.cliente',
+            'avances.fase',
+            'perfilPrograma.areas',
+            'responsableInicial',
+            'creador'
+        ]);
+    }
+
+    /**     * Obtener las fases configuradas para este programa (solo activas)
      * Prioridad: 1) Perfil asignado, 2) fases_configuradas, 3) Todas las fases activas
      */
     public function getFasesConfiguradas()
@@ -82,24 +95,21 @@ class Programa extends Model
     }
 
     /**
-     * Obtener array de IDs de fases configuradas (solo activas)
+     * Obtener array de IDs de fases configuradas (solo activas) - OPTIMIZADO
      */
     public function getFasesConfiguradasIds()
     {
-        // 1. Si tiene perfil asignado, usar las fases del perfil
-        if ($this->perfil_programa_id && $this->perfilPrograma) {
+        // 1. Si tiene perfil asignado y está precargado
+        if ($this->perfil_programa_id && $this->relationLoaded('perfilPrograma') && $this->perfilPrograma) {
             return $this->perfilPrograma->getFasesIds();
         }
 
         // 2. Si tiene fases configuradas manualmente
         if ($this->fases_configuradas && count($this->fases_configuradas) > 0) {
-            return Fase::whereIn('id', $this->fases_configuradas)
-                ->where('activo', true)
-                ->pluck('id')
-                ->toArray();
+            return $this->fases_configuradas;
         }
 
-        // 3. Por defecto, todas las fases activas
+        // 3. Fallback: cargar solo si es necesario
         return Fase::where('activo', true)->orderBy('orden')->pluck('id')->toArray();
     }
 
