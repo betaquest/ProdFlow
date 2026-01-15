@@ -50,6 +50,9 @@ class AvanceFaseObserver
                     ->sendToDatabase($admin);
             }
         }
+
+        // Invalidar cache en cualquier cambio
+        \Illuminate\Support\Facades\Cache::forget('dashboard_stats');
     }
 
     /**
@@ -57,7 +60,7 @@ class AvanceFaseObserver
      */
     public function deleted(AvanceFase $avanceFase): void
     {
-        //
+        \Illuminate\Support\Facades\Cache::forget('dashboard_stats');
     }
 
     /**

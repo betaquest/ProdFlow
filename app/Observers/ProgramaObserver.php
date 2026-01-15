@@ -84,18 +84,20 @@ class ProgramaObserver
 
     /**
      * Handle the Programa "updated" event.
+     * Invalida el cache cuando se actualiza un programa
      */
     public function updated(Programa $programa): void
     {
-        //
+        \Illuminate\Support\Facades\Cache::forget('dashboard_stats');
     }
 
     /**
      * Handle the Programa "deleted" event.
+     * Invalida el cache cuando se elimina un programa
      */
     public function deleted(Programa $programa): void
     {
-        //
+        \Illuminate\Support\Facades\Cache::forget('dashboard_stats');
     }
 
     /**
