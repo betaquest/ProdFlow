@@ -62,6 +62,29 @@ class FaseResource extends Resource
                     ->label('Activo')
                     ->default(true)
                     ->helperText('Desactiva esta fase para excluirla del flujo de producción'),
+                
+                Forms\Components\Section::make('Configuración de Acciones')
+                    ->description('Define si se requieren comentarios obligatorios al ejecutar las acciones')
+                    ->schema([
+                        Forms\Components\Toggle::make('requiere_comentario_inicio')
+                            ->label('Requiere comentario al Iniciar')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Si está activo, se solicitará comentario obligatorio al iniciar la fase'),
+                        Forms\Components\Toggle::make('requiere_comentario_liberacion')
+                            ->label('Requiere comentario al Liberar')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Si está activo, se solicitará comentario obligatorio al liberar la fase'),
+                        Forms\Components\Toggle::make('requiere_comentario_finalizacion')
+                            ->label('Requiere comentario al Finalizar')
+                            ->default(false)
+                            ->inline(false)
+                            ->helperText('Si está activo, se solicitará comentario obligatorio al finalizar la fase'),
+                    ])
+                    ->columns(3)
+                    ->collapsible()
+                    ->collapsed(false),
             ]);
     }
 

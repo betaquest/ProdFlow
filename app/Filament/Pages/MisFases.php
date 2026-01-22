@@ -640,9 +640,13 @@ class MisFases extends Page implements HasTable, HasForms
                     ->color('info')
                     ->tooltip('Iniciar fase')
                     ->visible(fn (AvanceFase $record) => $record->estado === 'pending')
-                    ->requiresConfirmation()
-                    ->modalHeading('Iniciar Fase')
+                    ->requiresConfirmation(fn (AvanceFase $record) => $record->fase->requiere_comentario_inicio)
+                    ->modalHeading(fn (AvanceFase $record) => $record->fase->requiere_comentario_inicio ? 'Iniciar Fase' : null)
                     ->modalDescription(function (AvanceFase $record) {
+                        if (!$record->fase->requiere_comentario_inicio) {
+                            return null;
+                        }
+                        
                         // Obtener las fases configuradas para este programa
                         $fasesConfiguradasIds = $record->programa->getFasesConfiguradasIds();
                         $fasesConfiguradas = Fase::whereIn('id', $fasesConfiguradasIds)
@@ -666,9 +670,14 @@ class MisFases extends Page implements HasTable, HasForms
 
                         return '¿Deseas iniciar esta fase ahora?';
                     })
-                    ->modalSubmitActionLabel('Sí, iniciar')
+                    ->modalSubmitActionLabel(fn (AvanceFase $record) => $record->fase->requiere_comentario_inicio ? 'Sí, iniciar' : null)
                     ->successNotificationTitle('Fase iniciada exitosamente')
                     ->form(function (AvanceFase $record) {
+                        // Si no requiere comentario, no mostrar formulario
+                        if (!$record->fase->requiere_comentario_inicio) {
+                            return [];
+                        }
+                        
                         $formFields = [];
 
                         // Obtener las fases configuradas para este programa
@@ -745,17 +754,24 @@ class MisFases extends Page implements HasTable, HasForms
                     ->color('success')
                     ->tooltip('Finalizar fase')
                     ->visible(fn (AvanceFase $record) => $record->estado === 'progress')
-                    ->requiresConfirmation()
-                    ->modalHeading('Finalizar Fase')
-                    ->modalDescription('¿Estás seguro de marcar esta fase como finalizada?')
-                    ->modalSubmitActionLabel('Sí, finalizar')
+                    ->requiresConfirmation(fn (AvanceFase $record) => $record->fase->requiere_comentario_finalizacion)
+                    ->modalHeading(fn (AvanceFase $record) => $record->fase->requiere_comentario_finalizacion ? 'Finalizar Fase' : null)
+                    ->modalDescription(fn (AvanceFase $record) => $record->fase->requiere_comentario_finalizacion ? '¿Estás seguro de marcar esta fase como finalizada?' : null)
+                    ->modalSubmitActionLabel(fn (AvanceFase $record) => $record->fase->requiere_comentario_finalizacion ? 'Sí, finalizar' : null)
                     ->successNotificationTitle('Fase completada exitosamente')
-                    ->form([
-                        Forms\Components\Textarea::make('notas_finalizacion')
-                            ->label('Notas para la siguiente fase')
-                            ->rows(3)
-                            ->placeholder('Agrega comentarios o instrucciones para la fase siguiente...'),
-                    ])
+                    ->form(function (AvanceFase $record) {
+                        // Solo mostrar formulario si requiere comentario
+                        if (!$record->fase->requiere_comentario_finalizacion) {
+                            return [];
+                        }
+                        
+                        return [
+                            Forms\Components\Textarea::make('notas_finalizacion')
+                                ->label('Notas para la siguiente fase')
+                                ->rows(3)
+                                ->placeholder('Agrega comentarios o instrucciones para la fase siguiente...'),
+                        ];
+                    })
                     ->action(function (AvanceFase $record, array $data) {
                         $record->update([
                             'estado' => 'done',
@@ -836,9 +852,13 @@ class MisFases extends Page implements HasTable, HasForms
                         // SIEMPRE mostrar el botón si hay siguiente fase
                         return true;
                     })
-                    ->requiresConfirmation(fn (AvanceFase $record) => $record->fecha_liberacion === null)
-                    ->modalHeading('Liberar Siguiente Fase')
+                    ->requiresConfirmation(fn (AvanceFase $record) => $record->fase->requiere_comentario_liberacion)
+                    ->modalHeading(fn (AvanceFase $record) => $record->fase->requiere_comentario_liberacion ? 'Liberar Siguiente Fase' : null)
                     ->modalDescription(function (AvanceFase $record) {
+                        if (!$record->fase->requiere_comentario_liberacion) {
+                            return null;
+                        }
+
                         // Usar el método del programa para obtener la siguiente fase según el perfil
                         $siguienteFaseData = $record->programa->getSiguienteFase($record->fase_id);
 
@@ -852,7 +872,7 @@ class MisFases extends Page implements HasTable, HasForms
 
                         return '¿Deseas liberar la siguiente fase del proceso?';
                     })
-                    ->modalSubmitActionLabel('Sí, liberar fase')
+                    ->modalSubmitActionLabel(fn (AvanceFase $record) => $record->fase->requiere_comentario_liberacion ? 'Sí, liberar fase' : null)
                     ->action(function (AvanceFase $record) {
                         // Si ya está liberada, no hacer nada
                         if ($record->fecha_liberacion) {

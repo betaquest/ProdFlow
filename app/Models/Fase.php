@@ -10,12 +10,24 @@ class Fase extends Model
 {
     use HasCommonScopes;
     protected $fillable = [
-        'nombre', 'alias', 'orden', 'area_id', 'requiere_aprobacion', 'estado', 'activo',
+        'nombre', 
+        'alias', 
+        'orden', 
+        'area_id', 
+        'requiere_aprobacion', 
+        'estado', 
+        'activo',
+        'requiere_comentario_inicio',
+        'requiere_comentario_liberacion',
+        'requiere_comentario_finalizacion',
     ];
 
     protected $casts = [
         'requiere_aprobacion' => 'boolean',
         'activo' => 'boolean',
+        'requiere_comentario_inicio' => 'boolean',
+        'requiere_comentario_liberacion' => 'boolean',
+        'requiere_comentario_finalizacion' => 'boolean',
     ];
 
     public function usuarios()
