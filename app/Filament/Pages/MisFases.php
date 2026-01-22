@@ -48,16 +48,18 @@ class MisFases extends Page implements HasTable, HasForms
 
     public static function getNavigationBadge(): ?string
     {
-        $query = AvanceFase::whereIn('estado', ['pending', 'progress'])
-            ->whereHas('programa', function ($q) {
-                $q->where('activo', true);
-            });
+        $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
 
         // Solo el Administrador ve el total de todas las tareas
         // Los demás usuarios solo ven las de su área
         if (!Auth::user()->hasRole('Administrador')) {
             $query->where('area_id', Auth::user()->area_id);
         }
+        
+        // Filtrar solo proyectos activos y no finalizados por defecto
+        $query->whereHas('programa.proyecto', function ($q) {
+            $q->where('activo', true)->where('finalizado', false);
+        });
 
         $count = $query->count();
 
@@ -66,16 +68,18 @@ class MisFases extends Page implements HasTable, HasForms
 
     public static function getNavigationBadgeColor(): ?string
     {
-        $query = AvanceFase::whereIn('estado', ['pending', 'progress'])
-            ->whereHas('programa', function ($q) {
-                $q->where('activo', true);
-            });
+        $query = AvanceFase::whereIn('estado', ['pending', 'progress']);
 
         // Solo el Administrador ve el total de todas las tareas
         // Los demás usuarios solo ven las de su área
         if (!Auth::user()->hasRole('Administrador')) {
             $query->where('area_id', Auth::user()->area_id);
         }
+        
+        // Filtrar solo proyectos activos y no finalizados por defecto
+        $query->whereHas('programa.proyecto', function ($q) {
+            $q->where('activo', true)->where('finalizado', false);
+        });
 
         $count = $query->count();
 
@@ -334,15 +338,17 @@ class MisFases extends Page implements HasTable, HasForms
 
     public function getTabs(): array
     {
-        $baseQuery = AvanceFase::query()
-            ->whereHas('programa', function ($q) {
-                $q->where('activo', true);
-            });
+        $baseQuery = AvanceFase::query();
 
         // Filtrar por área si no es administrador
         if (!Auth::user()->hasRole('Administrador')) {
             $baseQuery->where('area_id', Auth::user()->area_id);
         }
+        
+        // Filtrar solo proyectos activos y no finalizados por defecto
+        $baseQuery->whereHas('programa.proyecto', function ($q) {
+            $q->where('activo', true)->where('finalizado', false);
+        });
 
         return [
             'todos' => Tab::make('Todos')
@@ -372,10 +378,7 @@ class MisFases extends Page implements HasTable, HasForms
     public function table(Table $table): Table
     {
         $query = AvanceFase::query()
-            ->with(['programa.proyecto.cliente', 'fase', 'area'])
-            ->whereHas('programa', function ($q) {
-                $q->where('activo', true);
-            });
+            ->with(['programa.proyecto.cliente', 'fase', 'area']);
 
         // Solo el Administrador puede ver todos los procesos
         // Los demás usuarios solo ven las de su área
@@ -633,6 +636,18 @@ class MisFases extends Page implements HasTable, HasForms
                         'progress' => 'En Progreso',
                         'done' => 'Finalizado',
                     ]),
+                
+                Tables\Filters\TernaryFilter::make('proyecto_activo')
+                    ->label('Proyectos')
+                    ->placeholder('Solo activos')
+                    ->trueLabel('Activos')
+                    ->falseLabel('Inactivos/Finalizados')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereHas('programa.proyecto', fn ($q) => $q->where('activo', true)->where('finalizado', false)),
+                        false: fn (Builder $query) => $query->whereHas('programa.proyecto', fn ($q) => $q->where('activo', false)->orWhere('finalizado', true)),
+                        blank: fn (Builder $query) => $query,
+                    )
+                    ->default(true),
             ])
             ->actions([
                 Tables\Actions\Action::make('iniciar')
