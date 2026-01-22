@@ -285,7 +285,7 @@ class DashboardResource extends Resource
                         Forms\Components\TextInput::make('paginacion_cantidad')
                             ->label('📄 Programas por Página')
                             ->numeric()
-                            ->default(5)
+                            ->default(10)
                             ->minValue(1)
                             ->maxValue(50)
                             ->suffix('programas')
@@ -295,12 +295,40 @@ class DashboardResource extends Resource
                         Forms\Components\TextInput::make('paginacion_tiempo')
                             ->label('⏱️ Tiempo por Página')
                             ->numeric()
-                            ->default(10)
+                            ->default(5)
                             ->minValue(3)
                             ->maxValue(60)
                             ->suffix('segundos')
                             ->hidden(fn ($get) => $get('modo_visualizacion') !== 'paginacion')
                             ->helperText('Cuántos segundos mostrar cada grupo de programas antes de cambiar'),
+
+                        Forms\Components\Select::make('paginacion_actualizacion_tipo')
+                            ->label('🔄 Actualizar Datos')
+                            ->options([
+                                'por_vuelta' => 'Al terminar cada vuelta completa',
+                                'por_vueltas' => 'Cada X vueltas',
+                            ])
+                            ->default('por_vuelta')
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'paginacion')
+                            ->live()
+                            ->helperText('Define cuándo se recargan los datos'),
+
+                        Forms\Components\TextInput::make('paginacion_actualizacion_vueltas')
+                            ->label('🔃 Recargar cada X vueltas')
+                            ->numeric()
+                            ->default(1)
+                            ->minValue(1)
+                            ->maxValue(100)
+                            ->suffix('vueltas')
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'paginacion' || $get('paginacion_actualizacion_tipo') !== 'por_vueltas')
+                            ->helperText('Después de completar X vueltas completas, se recargan los datos'),
+                        
+                        Forms\Components\Toggle::make('ocultar_footer_paginacion')
+                            ->label('Ocultar footer de paginación')
+                            ->default(false)
+                            ->inline(false)
+                            ->hidden(fn ($get) => $get('modo_visualizacion') !== 'paginacion')
+                            ->helperText('Oculta el footer que muestra "Página X de Y" y "Cambia cada X segundos"'),
                     ])
                     ->columns(1)
                     ->collapsible()
@@ -314,7 +342,8 @@ class DashboardResource extends Resource
                             ->default(30)
                             ->minValue(5)
                             ->suffix('seg')
-                            ->helperText('Define cada cuántos segundos se actualiza la pantalla automáticamente'),
+                            ->hidden(fn ($get) => $get('modo_visualizacion') === 'paginacion')
+                            ->helperText('Define cada cuántos segundos se actualiza la pantalla automáticamente (NO aplica en modo Paginación)'),
                     ])
                     ->columns(1)
                     ->collapsed(),

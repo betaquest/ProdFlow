@@ -12,9 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('dashboards', function (Blueprint $table) {
-            $table->string('modo_visualizacion')->default('scroll')->after('auto_scroll_pausa');
-            $table->integer('paginacion_cantidad')->default(10)->after('modo_visualizacion');
-            $table->integer('paginacion_tiempo')->default(5)->after('paginacion_cantidad');
+            $table->string('paginacion_actualizacion_tipo')->default('por_vuelta')->after('paginacion_tiempo');
+            $table->integer('paginacion_actualizacion_vueltas')->default(1)->after('paginacion_actualizacion_tipo');
         });
     }
 
@@ -24,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('dashboards', function (Blueprint $table) {
-            $table->dropColumn(['modo_visualizacion', 'paginacion_cantidad', 'paginacion_tiempo']);
+            $table->dropColumn(['paginacion_actualizacion_tipo', 'paginacion_actualizacion_vueltas']);
         });
     }
 };

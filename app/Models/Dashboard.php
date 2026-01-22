@@ -39,6 +39,9 @@ class Dashboard extends Model
         'modo_visualizacion',
         'paginacion_cantidad',
         'paginacion_tiempo',
+        'paginacion_actualizacion_tipo',
+        'paginacion_actualizacion_vueltas',
+        'ocultar_footer_paginacion',
     ];
 
     protected $casts = [
@@ -67,6 +70,7 @@ class Dashboard extends Model
         'auto_scroll_pausa' => 'integer',
         'paginacion_cantidad' => 'integer',
         'paginacion_tiempo' => 'integer',
+        'paginacion_actualizacion_vueltas' => 'integer',
     ];
 
     public function getRouteKeyName(): string

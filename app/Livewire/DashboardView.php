@@ -31,6 +31,11 @@ class DashboardView extends Component
     // Programas completamente finalizados
     public array $programasFinalizados = [];
 
+    // Paginación
+    public int $paginaActual = 1;
+    public int $totalPaginas = 1;
+    public $programasPagina = [];
+
     public function mount(Dashboard $dashboard)
     {
         abort_unless($dashboard->activo, 404);
@@ -228,6 +233,77 @@ class DashboardView extends Component
 
         // OPTIMIZACIÓN: Calcular estadísticas en una sola pasada
         $this->calcularEstadisticas($programasFiltrados, $avancesByPrograma);
+
+        // Calcular paginación si está en modo paginación
+        if ($this->dashboard->modo_visualizacion === 'paginacion') {
+            $this->calcularPaginacion();
+        }
+    }
+
+    /**
+     * Calcula la paginación automática
+     */
+    private function calcularPaginacion()
+    {
+        $registrosPorPagina = $this->dashboard->paginacion_cantidad ?? 10;
+        $totalProgramas = count($this->programas);
+        
+        // Calcular total de páginas
+        $this->totalPaginas = max(1, ceil($totalProgramas / $registrosPorPagina));
+        
+        // Asegurar que la página actual está dentro del rango válido
+        if ($this->paginaActual > $this->totalPaginas) {
+            $this->paginaActual = 1;
+        }
+        
+        // Obtener los programas de la página actual
+        $inicio = ($this->paginaActual - 1) * $registrosPorPagina;
+        $this->programasPagina = collect($this->programas)
+            ->slice($inicio, $registrosPorPagina)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Ir a la siguiente página
+     */
+    public function irSiguientePagina()
+    {
+        if ($this->paginaActual < $this->totalPaginas) {
+            $this->paginaActual++;
+        } else {
+            // Volver a página 1 y recargar datos
+            $this->paginaActual = 1;
+            $this->loadData();
+            return;
+        }
+        
+        $this->calcularPaginacion();
+    }
+
+    /**
+     * Ir a la página anterior
+     */
+    public function irPaginaAnterior()
+    {
+        if ($this->paginaActual > 1) {
+            $this->paginaActual--;
+        } else {
+            $this->paginaActual = $this->totalPaginas;
+        }
+        
+        $this->calcularPaginacion();
+    }
+
+    /**
+     * Ir a una página específica
+     */
+    public function irAPagina($numero)
+    {
+        if ($numero >= 1 && $numero <= $this->totalPaginas) {
+            $this->paginaActual = $numero;
+            $this->calcularPaginacion();
+        }
     }
 
     /**

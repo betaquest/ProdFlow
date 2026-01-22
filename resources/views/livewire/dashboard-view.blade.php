@@ -91,7 +91,9 @@
                     @endforeach
                 </tr>
             </thead>
-            <tbody wire:poll.{{ $dashboard->tiempo_actualizacion }}s="loadData" id="tabla-body">
+            <tbody @if($dashboard->modo_visualizacion !== 'paginacion') wire:poll.{{ $dashboard->tiempo_actualizacion }}s="loadData" @endif id="tabla-body" 
+                @if($dashboard->modo_visualizacion === 'paginacion') class="pagination-body" @endif
+            >
                 @foreach($programas as $index => $programa)
                     @php
                         $tieneAlerta = in_array($programa->id, $programasConAlerta);
@@ -200,56 +202,6 @@
             </tbody>
         </table>
     </div>
-
-    {{-- ⚙️ PIE --}}
-    @if(!$dashboard->ocultar_footer)
-        <footer class="text-center text-slate-400 text-sm border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20 relative overflow-hidden">
-            {{-- Texto del footer --}}
-            <div class="relative z-10 py-2">
-                Refresca cada {{ $dashboard->tiempo_actualizacion }} segundos — Última actualización: {{ now()->format('H:i:s') }}
-            </div>
-
-            {{-- Barra de progreso sutil en la parte inferior --}}
-            <div class="absolute bottom-0 left-0 w-full h-1.5 bg-slate-700/50">
-                <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-blue-400" style="width: 0%; transition: width 0.5s linear; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div>
-            </div>
-        </footer>
-
-        {{-- Script para animar la barra de progreso --}}
-        <script>
-            (function() {
-                const progressBar = document.getElementById('progress-bar');
-                if (!progressBar) return;
-
-                const updateInterval = {{ $dashboard->tiempo_actualizacion }} * 1000; // Convertir a milisegundos
-                let startTime = Date.now();
-
-                function updateProgress() {
-                    const elapsed = Date.now() - startTime;
-                    const progress = Math.min((elapsed / updateInterval) * 100, 100);
-                    progressBar.style.width = progress + '%';
-
-                    if (progress < 100) {
-                        requestAnimationFrame(updateProgress);
-                    }
-                }
-
-                function resetProgress() {
-                    startTime = Date.now();
-                    progressBar.style.width = '0%';
-                    requestAnimationFrame(updateProgress);
-                }
-
-                // Iniciar la animación
-                resetProgress();
-
-                // Reiniciar cuando Livewire actualiza los datos
-                Livewire.hook('message.processed', (message, component) => {
-                    resetProgress();
-                });
-            })();
-        </script>
-    @endif
 
     {{-- 🕒 RELOJ EN TIEMPO REAL --}}
     <script>
@@ -446,52 +398,273 @@
     </script>
     @endif
 
+    {{-- 📄 FOOTER DE PAGINACIÓN (opcional) --}}
+    @if($dashboard->modo_visualizacion === 'paginacion' && !$dashboard->ocultar_footer_paginacion)
+    <footer class="bg-slate-900/90 backdrop-blur-md border-t border-slate-800 z-20 relative flex items-center justify-center gap-6 px-6 py-4">
+        {{-- Indicador de página --}}
+        <div id="pagina-info" class="text-slate-300 font-semibold text-lg min-w-[200px] text-center transition-opacity duration-300">
+            Página <span id="pagina-actual">1</span> de <span id="pagina-total">1</span>
+        </div>
+
+        {{-- Indicador visual de progreso (puntos) --}}
+        <div id="pagina-dots" class="flex gap-2 transition-opacity duration-300">
+            <!-- Se generan dinámicamente con JS -->
+        </div>
+
+        {{-- Información adicional --}}
+        <div class="text-slate-400 text-sm">
+            Cambia cada {{ $dashboard->paginacion_tiempo ?? 5 }} segundos
+        </div>
+    </footer>
+    @endif
+
+    {{-- SCRIPT DE PAGINACIÓN (siempre activo cuando modo = paginacion) --}}
     @if($dashboard->modo_visualizacion === 'paginacion')
-    {{-- 📄 PAGINACIÓN AUTOMÁTICA --}}
+    {{-- PAGINACIÓN CON TRANSICIONES ELEGANTES --}}
     <script>
         (function() {
             const tbody = document.getElementById('tabla-body');
             if (!tbody) return;
 
-            const porPagina = {{ $dashboard->paginacion_cantidad ?? 5 }};
-            const tiempoPorPagina = {{ $dashboard->paginacion_tiempo ?? 10 }} * 1000; // Convertir a milisegundos
+            const porPagina = {{ $dashboard->paginacion_cantidad ?? 10 }};
+            const tiempoPorPagina = {{ $dashboard->paginacion_tiempo ?? 5 }} * 1000; // Convertir a milisegundos
+            const actualizacionTipo = '{{ $dashboard->paginacion_actualizacion_tipo ?? "por_vuelta" }}';
+            const actualizacionVueltas = {{ $dashboard->paginacion_actualizacion_vueltas ?? 1 }};
 
-            let paginaActual = 0;
+            let paginaActual = 1;
             let totalProgramas = 0;
-            let totalPaginas = 0;
+            let totalPaginas = 1;
             let intervalId = null;
+            let isTransitioning = false;
+            let vueltas = 0; // Contador de vueltas completas
 
             function contarProgramas() {
                 const filas = tbody.querySelectorAll('tr[data-programa-index]');
-                totalProgramas = filas.length;
-                totalPaginas = Math.ceil(totalProgramas / porPagina);
+                const nuevoTotal = filas.length;
+                
+                // Si el total cambió, recalcular páginas
+                if (nuevoTotal !== totalProgramas) {
+                    totalProgramas = nuevoTotal;
+                    const nuevasPaginas = Math.max(1, Math.ceil(totalProgramas / porPagina));
+                    
+                    // Si el número de páginas cambió, reiniciar desde página 1
+                    if (nuevasPaginas !== totalPaginas) {
+                        totalPaginas = nuevasPaginas;
+                        paginaActual = 1;
+                    }
+                }
+                
+                // Actualizar indicadores (solo si existen)
+                const paginaActualEl = document.getElementById('pagina-actual');
+                const paginaTotalEl = document.getElementById('pagina-total');
+                if (paginaActualEl) paginaActualEl.textContent = paginaActual;
+                if (paginaTotalEl) paginaTotalEl.textContent = totalPaginas;
+            }
+
+            function generarPuntos() {
+                const dotsContainer = document.getElementById('pagina-dots');
+                if (!dotsContainer) return; // Si no existe el contenedor, salir
+                
+                dotsContainer.innerHTML = '';
+                
+                for (let i = 1; i <= totalPaginas; i++) {
+                    const dot = document.createElement('button');
+                    dot.type = 'button';
+                    dot.className = `w-3 h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                        i === paginaActual 
+                            ? 'bg-blue-400 shadow-lg shadow-blue-500/50 scale-125' 
+                            : 'bg-slate-600 hover:bg-slate-500'
+                    }`;
+                    dot.onclick = (e) => {
+                        e.preventDefault();
+                        irAPagina(i);
+                    };
+                    dotsContainer.appendChild(dot);
+                }
             }
 
             function mostrarPagina(numeroPagina) {
                 const filas = tbody.querySelectorAll('tr[data-programa-index]');
-                const inicio = numeroPagina * porPagina;
+                const inicio = (numeroPagina - 1) * porPagina;
                 const fin = inicio + porPagina;
 
                 filas.forEach((fila, index) => {
-                    if (index >= inicio && index < fin) {
-                        fila.style.display = '';
+                    const mostrar = index >= inicio && index < fin;
+                    
+                    if (mostrar) {
+                        // Preparar entrada desde la derecha
+                        fila.style.display = 'table-row';
+                        fila.style.position = 'relative';
+                        fila.style.opacity = '0';
+                        fila.style.transform = 'translateX(100%)';
+                        fila.style.transition = 'none';
+                        
+                        // Trigger reflow
+                        void fila.offsetHeight;
+                        
+                        // Animar entrada: deslizar desde derecha + fade in
+                        requestAnimationFrame(() => {
+                            fila.style.transition = 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                            fila.style.opacity = '1';
+                            fila.style.transform = 'translateX(0)';
+                        });
                     } else {
-                        fila.style.display = 'none';
+                        // Animar salida: deslizar hacia izquierda + fade out
+                        fila.style.position = 'relative';
+                        fila.style.transition = 'all 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+                        fila.style.opacity = '0';
+                        fila.style.transform = 'translateX(-100%)';
+                        
+                        // Ocultar después de la transición
+                        setTimeout(() => {
+                            if (fila.style.opacity === '0') {
+                                fila.style.display = 'none';
+                                fila.style.transform = '';
+                                fila.style.position = '';
+                            }
+                        }, 500);
                     }
                 });
             }
 
+            function irAPagina(numero) {
+                if (numero >= 1 && numero <= totalPaginas && !isTransitioning) {
+                    isTransitioning = true;
+                    paginaActual = numero;
+                    
+                    // Actualizar indicadores (solo si existen)
+                    const paginaActualEl = document.getElementById('pagina-actual');
+                    if (paginaActualEl) paginaActualEl.textContent = paginaActual;
+                    generarPuntos();
+                    
+                    // Mostrar nueva página con transición
+                    mostrarPagina(paginaActual);
+                    
+                    setTimeout(() => {
+                        isTransitioning = false;
+                    }, 600);
+                }
+            }
+
+            function recargarDatos() {
+                console.log('Recargando datos...');
+                
+                // Ocultar indicadores durante la recarga
+                const paginaInfo = document.getElementById('pagina-info');
+                const paginaDots = document.getElementById('pagina-dots');
+                if (paginaInfo) paginaInfo.style.opacity = '0.2';
+                if (paginaDots) paginaDots.style.opacity = '0.2';
+                
+                // Pausa visual
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                }
+                
+                // Esperar 2 segundos antes de recargar
+                setTimeout(() => {
+                    // Llamar a loadData en Livewire (componente padre)
+                    const wireId = document.querySelector('[wire\\:id]').getAttribute('wire:id');
+                    if (wireId) {
+                        // Usar async/await para esperar que Livewire complete la actualización
+                        Livewire.find(wireId).call('loadData').then(() => {
+                            // Esperar a que el DOM se actualice completamente
+                            // Usar un pequeno polling para asegurar que las filas estén presentes
+                            let intentos = 0;
+                            const maxIntentos = 15; // 15 * 200ms = 3 segundos máximo
+                            
+                            const esperarFilas = setInterval(() => {
+                                intentos++;
+                                const filas = tbody.querySelectorAll('tr[data-programa-index]');
+                                console.log(`Intento ${intentos}: Se encontraron ${filas.length} filas`);
+                                
+                                if (filas.length > 0 || intentos >= maxIntentos) {
+                                    clearInterval(esperarFilas);
+                                    console.log('DOM listo, reiniciando paginación...');
+                                    paginaActual = 1;
+                                    vueltas = 0;
+                                    
+                                    // Restaurar opacidad antes de reiniciar
+                                    if (paginaInfo) paginaInfo.style.opacity = '1';
+                                    if (paginaDots) paginaDots.style.opacity = '1';
+                                    
+                                    iniciarPaginacion();
+                                }
+                            }, 200);
+                        });
+                    }
+                }, 2000);
+            }
+
             function siguientePagina() {
-                paginaActual = (paginaActual + 1) % totalPaginas;
-                mostrarPagina(paginaActual);
+                if (paginaActual < totalPaginas) {
+                    // Ir a la siguiente página
+                    irAPagina(paginaActual + 1);
+                } else {
+                    // Llegamos a la última página - completamos una vuelta
+                    vueltas++;
+                    console.log(`Vuelta completa #${vueltas} de ${actualizacionVueltas} (tipo: ${actualizacionTipo})`);
+                    
+                    // Decidir si recargar datos basado en la configuración
+                    let debeRecargar = false;
+                    
+                    if (actualizacionTipo === 'por_vuelta') {
+                        // Recargar después de cada vuelta completa
+                        debeRecargar = true;
+                    } else if (actualizacionTipo === 'por_vueltas') {
+                        // Recargar después de X vueltas
+                        if (vueltas >= actualizacionVueltas) {
+                            debeRecargar = true;
+                            vueltas = 0; // Resetear contador
+                        }
+                    }
+                    
+                    if (debeRecargar) {
+                        // Detener el intervalo aquí para no seguir pagando mientras se recarga
+                        if (intervalId) {
+                            clearInterval(intervalId);
+                            intervalId = null;
+                        }
+                        recargarDatos();
+                    } else {
+                        // Sin recarga, solo volver a página 1
+                        irAPagina(1);
+                    }
+                }
             }
 
             function iniciarPaginacion() {
-                contarProgramas();
+                console.log('Iniciando paginación...');
+                
+                // Contar programas actuales
+                const filas = tbody.querySelectorAll('tr[data-programa-index]');
+                totalProgramas = filas.length;
+                
+                console.log(`Total de programas encontrados: ${totalProgramas}`);
+                
+                // Si no hay programas, mostrar mensaje
+                if (totalProgramas === 0) {
+                    console.warn('No hay programas para paginar');
+                    const paginaActualEl = document.getElementById('pagina-actual');
+                    const paginaTotalEl = document.getElementById('pagina-total');
+                    if (paginaActualEl) paginaActualEl.textContent = '0';
+                    if (paginaTotalEl) paginaTotalEl.textContent = '0';
+                    return;
+                }
+                
+                totalPaginas = Math.max(1, Math.ceil(totalProgramas / porPagina));
+                
+                console.log(`Total de páginas: ${totalPaginas}, Registros por página: ${porPagina}`);
+                
+                generarPuntos();
 
                 if (totalPaginas <= 1) {
-                    // Si solo hay una página o menos, mostrar todo
-                    mostrarPagina(0);
+                    // Si solo hay una página, mostrar todo sin ciclar
+                    mostrarPagina(1);
+                    const paginaActualEl = document.getElementById('pagina-actual');
+                    const paginaTotalEl = document.getElementById('pagina-total');
+                    if (paginaActualEl) paginaActualEl.textContent = '1';
+                    if (paginaTotalEl) paginaTotalEl.textContent = '1';
                     if (intervalId) {
                         clearInterval(intervalId);
                         intervalId = null;
@@ -500,13 +673,18 @@
                 }
 
                 // Mostrar la primera página
-                paginaActual = 0;
+                paginaActual = 1;
                 mostrarPagina(paginaActual);
+                const paginaActualEl = document.getElementById('pagina-actual');
+                const paginaTotalEl = document.getElementById('pagina-total');
+                if (paginaActualEl) paginaActualEl.textContent = paginaActual;
+                if (paginaTotalEl) paginaTotalEl.textContent = totalPaginas;
 
                 // Configurar el cambio automático
                 if (intervalId) {
                     clearInterval(intervalId);
                 }
+                console.log(`Iniciando ciclo de ${tiempoPorPagina}ms entre páginas`);
                 intervalId = setInterval(siguientePagina, tiempoPorPagina);
             }
 
@@ -515,12 +693,60 @@
             document.addEventListener('livewire:navigated', iniciarPaginacion);
             document.addEventListener('livewire:load', iniciarPaginacion);
 
-            // Reiniciar después de actualización de Livewire
-            Livewire.hook('message.processed', (message, component) => {
-                setTimeout(iniciarPaginacion, 500);
-            });
+            // NO recalcular automáticamente en message.processed para evitar contar mal
+            // Las actualizaciones se controlan manualmente desde recargarDatos()
         })();
     </script>
+    @endif
+
+    {{-- ⚙️ PIE (cuando NO está en paginación) --}}
+    @if($dashboard->modo_visualizacion !== 'paginacion' && !$dashboard->ocultar_footer)
+        <footer class="text-center text-slate-400 text-sm border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20 relative overflow-hidden">
+            {{-- Texto del footer --}}
+            <div class="relative z-10 py-2">
+                Refresca cada {{ $dashboard->tiempo_actualizacion }} segundos — Última actualización: {{ now()->format('H:i:s') }}
+            </div>
+
+            {{-- Barra de progreso sutil en la parte inferior --}}
+            <div class="absolute bottom-0 left-0 w-full h-1.5 bg-slate-700/50">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-blue-400" style="width: 0%; transition: width 0.5s linear; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div>
+            </div>
+        </footer>
+
+        {{-- Script para animar la barra de progreso --}}
+        <script>
+            (function() {
+                const progressBar = document.getElementById('progress-bar');
+                if (!progressBar) return;
+
+                const updateInterval = {{ $dashboard->tiempo_actualizacion }} * 1000; // Convertir a milisegundos
+                let startTime = Date.now();
+
+                function updateProgress() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min((elapsed / updateInterval) * 100, 100);
+                    progressBar.style.width = progress + '%';
+
+                    if (progress < 100) {
+                        requestAnimationFrame(updateProgress);
+                    }
+                }
+
+                function resetProgress() {
+                    startTime = Date.now();
+                    progressBar.style.width = '0%';
+                    requestAnimationFrame(updateProgress);
+                }
+
+                // Iniciar la animación
+                resetProgress();
+
+                // Reiniciar cuando Livewire actualiza los datos
+                Livewire.hook('message.processed', (message, component) => {
+                    resetProgress();
+                });
+            })();
+        </script>
     @endif
 
     {{-- 🌈 FONDO ANIMADO --}}
@@ -563,6 +789,53 @@
         section {
             box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05),
                         0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        /* Estilos para transiciones en paginación */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOutLeft {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-40px);
+            }
+        }
+
+        /* Animación suave para puntos indicadores */
+        @keyframes dotPulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        #pagina-dots button.active {
+            animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        /* Efecto hover en botones de puntos */
+        #pagina-dots button:hover {
+            transform: scale(1.3) !important;
+        }
+
+        /* Transiciones suaves en filas */
+        .pagination-body tr {
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
     </style>
 </div>
