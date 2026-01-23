@@ -223,20 +223,18 @@ class ProgramaResource extends Resource
                     ->wrap(),
                 Tables\Columns\TextColumn::make('descripcion')
                     ->label('Descripción')
-                    ->limit(15)
-                    ->tooltip(function ($record): ?string {
-                        return $record->descripcion;
-                    })
+                    ->limit(20)
+                    ->wrap()
                     ->placeholder('—')
                     ->toggleable()
                     ->toggledHiddenByDefault(),
                 Tables\Columns\TextColumn::make('proyecto.nombre')
                     ->label('Proyecto')
-                    ->formatStateUsing(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')')
                     ->sortable()
                     ->searchable()
-                    ->limit(25)
-                    ->tooltip(fn ($record) => $record->proyecto->nombre . ' (' . $record->proyecto->cliente->nombre . ')'),
+                    ->limit(30)
+                    ->description(fn ($record) => $record->proyecto->cliente->nombre ?? '')
+                    ->wrap(),
                 Tables\Columns\TextColumn::make('perfilPrograma.nombre')
                     ->label('Perfil')
                     ->badge()
@@ -248,25 +246,6 @@ class ProgramaResource extends Resource
                 Tables\Columns\TextColumn::make('fase_actual')
                     ->label('Fase Actual')
                     ->badge()
-                    ->getStateUsing(function ($record) {
-                        // Buscar avance en progreso directamente
-                        $avanceEnProgreso = $record->avances->firstWhere('estado', 'progress');
-                        if ($avanceEnProgreso) {
-                            return $avanceEnProgreso->fase->nombre;
-                        }
-
-                        // Buscar última fase completada
-                        $ultimoAvance = $record->avances
-                            ->where('estado', 'done')
-                            ->sortByDesc('updated_at')
-                            ->first();
-                        
-                        if ($ultimoAvance) {
-                            return $ultimoAvance->fase->nombre . ' ✓';
-                        }
-
-                        return 'Sin iniciar';
-                    })
                     ->color(fn ($state) => match (true) {
                         str_contains($state, '✓') => 'success',
                         $state === 'Sin iniciar' => 'gray',
@@ -280,24 +259,6 @@ class ProgramaResource extends Resource
                 Tables\Columns\TextColumn::make('estado_proceso')
                     ->label('Estado')
                     ->badge()
-                    ->getStateUsing(function ($record) {
-                        $totalAvances = $record->avances->count();
-                        
-                        if ($totalAvances === 0) {
-                            return '⬜ Sin Iniciar';
-                        }
-
-                        $completadas = $record->avances->where('estado', 'done')->count();
-                        $enProgreso = $record->avances->where('estado', 'progress')->count();
-                        
-                        if ($enProgreso > 0) {
-                            return "⏳ En Progreso";
-                        } elseif ($completadas > 0) {
-                            return "✅ Avanzando";
-                        }
-                        
-                        return '⬜ Sin Iniciar';
-                    })
                     ->color(fn ($state) => match (true) {
                         str_contains($state, '✅') => 'success',
                         str_contains($state, '⏳') => 'warning',
@@ -313,9 +274,7 @@ class ProgramaResource extends Resource
                 Tables\Columns\TextColumn::make('notas')
                     ->label('Notas')
                     ->limit(20)
-                    ->tooltip(function ($record): ?string {
-                        return $record->notas;
-                    })
+                    ->wrap()
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

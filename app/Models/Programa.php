@@ -27,6 +27,8 @@ class Programa extends Model
         'activo' => 'boolean',
     ];
 
+    protected $appends = ['fase_actual', 'estado_proceso'];
+
     public function proyecto()
     {
         return $this->belongsTo(Proyecto::class);
@@ -57,16 +59,20 @@ class Programa extends Model
         return $this->hasMany(ProgramaResetHistory::class);
     }
 
-    /**     * Scope para optimizar carga con eager loading
+    /**
+     * Scope para optimizar carga con eager loading
      */
     public function scopeWithOptimizations($query)
     {
         return $query->with([
-            'proyecto.cliente',
-            'avances.fase',
-            'perfilPrograma.areas',
-            'responsableInicial',
-            'creador'
+            'proyecto:id,nombre,cliente_id',
+            'proyecto.cliente:id,nombre',
+            'avances' => function ($query) {
+                $query->select('id', 'programa_id', 'fase_id', 'estado', 'updated_at')
+                      ->with('fase:id,nombre,orden');
+            },
+            'perfilPrograma:id,nombre',
+            'responsableInicial:id,name',
         ]);
     }
 
@@ -169,5 +175,63 @@ class Programa extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Obtener la fase actual del programa (optimizado para tabla)
+     */
+    public function getFaseActualAttribute()
+    {
+        if (!$this->relationLoaded('avances')) {
+            return 'N/A';
+        }
+
+        // Buscar avance en progreso
+        $avanceEnProgreso = $this->avances->firstWhere('estado', 'progress');
+        if ($avanceEnProgreso && $avanceEnProgreso->relationLoaded('fase')) {
+            return $avanceEnProgreso->fase->nombre;
+        }
+
+        // Buscar última fase completada
+        $ultimoAvance = $this->avances
+            ->where('estado', 'done')
+            ->sortByDesc('updated_at')
+            ->first();
+        
+        if ($ultimoAvance && $ultimoAvance->relationLoaded('fase')) {
+            return $ultimoAvance->fase->nombre . ' ✓';
+        }
+
+        return 'Sin iniciar';
+    }
+
+    /**
+     * Obtener el estado del proceso (optimizado para tabla)
+     */
+    public function getEstadoProcesoAttribute()
+    {
+        if (!$this->relationLoaded('avances')) {
+            return '⬜ Sin Iniciar';
+        }
+
+        $totalAvances = $this->avances->count();
+        
+        if ($totalAvances === 0) {
+            return '⬜ Sin Iniciar';
+        }
+
+        $enProgreso = $this->avances->where('estado', 'progress')->count();
+        
+        if ($enProgreso > 0) {
+            return '⏳ En Progreso';
+        }
+        
+        $completadas = $this->avances->where('estado', 'done')->count();
+        
+        if ($completadas > 0) {
+            return '✅ Avanzando';
+        }
+        
+        return '⬜ Sin Iniciar';
     }
 }

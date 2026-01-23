@@ -1,0 +1,53 @@
+# ============================================
+# COMANDOS PARA OPTIMIZAR RENDIMIENTO
+# Ejecutar en PRODUCCIÓN
+# ============================================
+
+# 1. MIGRAR ÍNDICES DE BASE DE DATOS (CRÍTICO)
+php artisan migrate
+
+# 2. LIMPIAR TODAS LAS CACHÉS
+php artisan optimize:clear
+php artisan view:clear
+php artisan config:clear
+php artisan cache:clear
+php artisan filament:optimize-clear
+
+# 3. OPTIMIZAR AUTOLOADER DE COMPOSER
+composer dump-autoload -o
+
+# 4. REGENERAR CACHÉ OPTIMIZADA
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 5. RECOMPILAR ASSETS (si modificaste vistas o componentes)
+npm run build
+
+# 6. REINICIAR SERVICIOS
+# Para Apache (XAMPP/Laragon):
+# - Detener y reiniciar Apache desde el panel de control
+
+# Para PHP-FPM/Nginx:
+# sudo systemctl restart php8.3-fpm
+# sudo systemctl restart nginx
+
+# ============================================
+# VERIFICAR RENDIMIENTO
+# ============================================
+# Después de ejecutar los comandos:
+# 1. Abrir navegador en modo incógnito (Ctrl + Shift + N)
+# 2. Ir a la tabla de Programas
+# 3. Debería cargar en menos de 2 segundos
+
+# ============================================
+# ANÁLISIS DE QUERIES (OPCIONAL - SOLO DESARROLLO)
+# ============================================
+# Si aún sigue lento, puedes agregar esto temporalmente
+# en AppServiceProvider boot():
+# 
+# DB::listen(function($query) {
+#     Log::info('Query: ' . $query->sql);
+#     Log::info('Bindings: ' . implode(', ', $query->bindings));
+#     Log::info('Time: ' . $query->time . 'ms');
+# });
