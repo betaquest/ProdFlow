@@ -38,12 +38,15 @@ class ProyectoResource extends Resource
             ->schema([
                 Forms\Components\Select::make('cliente_id')
                     ->label('Cliente')
-                    ->relationship('cliente', 'nombre')
+                    ->relationship('cliente', 'nombre', fn ($query) => $query->where('activo', true)->orderBy('nombre'))
+                    ->searchable()
+                    ->preload()
                     ->required()
                     ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('proyectos.editar')),
                 Forms\Components\TextInput::make('nombre')
                     ->label('Nombre del proyecto')
                     ->required()
+                    ->maxLength(255)
                     ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('proyectos.editar')),
                 Forms\Components\Textarea::make('descripcion')
                     ->label('Descripción')

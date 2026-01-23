@@ -29,6 +29,7 @@ class ClienteResource extends Resource
                 Forms\Components\TextInput::make('nombre')
                     ->required()
                     ->maxLength(255)
+                    ->autofocus()
                     ->disabled(fn ($context) => $context === 'edit' && !auth()->user()->can('clientes.editar')),
                 Forms\Components\TextInput::make('alias')
                     ->label('Alias / Apodo')
