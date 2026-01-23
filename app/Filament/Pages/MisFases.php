@@ -328,6 +328,7 @@ class MisFases extends Page implements HasTable, HasForms
                             'fases_configuradas' => $data['fases_configuradas'] ?? null,
                         ]);
 
+                        
                         Notification::make()
                             ->title('Programa creado exitosamente')
                             ->success()
